@@ -15,6 +15,14 @@ import {
 } from "@shared/schema";
 import session from "express-session";
 import bcrypt from "bcryptjs";
+import { Request, Response, NextFunction } from "express";
+
+declare module "express-session" {
+  interface SessionData {
+    userId: string;
+    role: string;
+  }
+}
 
 // Helper to get the default admin user ID
 async function getAdminUserId() {
@@ -41,7 +49,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth Middleware (to protect routes)
   const authMiddleware =
-    (requiredRoles?: string | string[]) => (req, res, next) => {
+    (requiredRoles?: string | string[]) =>
+    (req: Request, res: Response, next: NextFunction) => {
       if (!req.session.userId) {
         return res.status(401).json({ error: "Unauthorized" });
       }
@@ -61,7 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     };
 
   // Auth Routes
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
     const { email, password } = req.body;
     try {
       const user = await storage.loginUser(email, password);
@@ -83,52 +92,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
     req.session.destroy((err) => {
       if (err) return res.status(500).json({ error: "Logout failed" });
       res.json({ message: "Logged out" });
     });
   });
 
-  app.get("/api/auth/me", authMiddleware(), async (req, res) => {
-    const user = await storage.getUser(req.session.userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-    });
-  });
+  app.get(
+    "/api/auth/me",
+    authMiddleware(),
+    async (req: Request, res: Response) => {
+      const user = await storage.getUser(req.session.userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        },
+      });
+    }
+  );
 
   // User Management (Admin only)
-  app.post("/api/users", authMiddleware("ADMIN"), async (req, res) => {
-    try {
-      const data = insertUserSchema.parse(req.body);
-      const hashedPassword = await bcrypt.hash(data.password, 10);
-      const user = await storage.createUser({
-        ...data,
-        password: hashedPassword,
-      });
-      // Return safe user object (without password)
-      res.json(user);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid user data" });
+  app.post(
+    "/api/users",
+    authMiddleware("ADMIN"),
+    async (req: Request, res: Response) => {
+      try {
+        const data = insertUserSchema.parse(req.body);
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+        const user = await storage.createUser({
+          ...data,
+          password: hashedPassword,
+        });
+        // Return safe user object (without password)
+        res.json(user);
+      } catch (error) {
+        res.status(400).json({ error: "Invalid user data" });
+      }
     }
-  });
+  );
 
-  app.get("/api/users", authMiddleware("ADMIN"), async (req, res) => {
-    const users = await storage.getUsers();
-    res.json(users);
-  });
+  app.get(
+    "/api/users",
+    authMiddleware("ADMIN"),
+    async (req: Request, res: Response) => {
+      const users = await storage.getUsers();
+      res.json(users);
+    }
+  );
 
   // Items (replaces Ingredients and Products)
   app.get(
     "/api/raw-materials",
     authMiddleware(["ADMIN", "KITCHEN", "CASHIER"]), // Add KITCHEN role
-    async (req, res) => {
+    async (req: Request, res: Response) => {
       try {
         const items = await storage.getItems();
         res.json(items);
@@ -139,24 +160,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  app.post("/api/raw-materials", authMiddleware("ADMIN"), async (req, res) => {
-    try {
-      const data = newItemSchema.parse(req.body);
-      const item = await storage.createItem(data);
-      res.json(item);
-    } catch (error: any) {
-      console.error("Failed to create item:", error);
-      res.status(400).json({
-        error: "Failed to create item",
-        details: error.errors || error.issues || error.message,
-      });
+  app.post(
+    "/api/raw-materials",
+    authMiddleware("ADMIN"),
+    async (req: Request, res: Response) => {
+      try {
+        const data = newItemSchema.parse(req.body);
+        const item = await storage.createItem(data);
+        res.json(item);
+      } catch (error: any) {
+        console.error("Failed to create item:", error);
+        res.status(400).json({
+          error: "Failed to create item",
+          details: error.errors || error.issues || error.message,
+        });
+      }
     }
-  });
+  );
 
   app.get(
     "/api/raw-materials/:id/recipe",
     authMiddleware(["ADMIN", "CASHIER"]),
-    async (req, res) => {
+    async (req: Request, res: Response) => {
       try {
         const recipeItems = await storage.getRecipeItems(req.params.id);
         res.json(recipeItems);
@@ -167,7 +192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Suppliers
-  app.get("/api/suppliers", async (req, res) => {
+  app.get("/api/suppliers", async (req: Request, res: Response) => {
     try {
       const suppliers = await storage.getSuppliers();
       res.json(suppliers);
@@ -176,7 +201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/suppliers", async (req, res) => {
+  app.post("/api/suppliers", async (req: Request, res: Response) => {
     try {
       const data = insertSupplierSchema.parse(req.body);
       const supplier = await storage.createSupplier(data);
@@ -187,7 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Purchases
-  app.get("/api/purchases", async (req, res) => {
+  app.get("/api/purchases", async (req: Request, res: Response) => {
     try {
       const purchases = await storage.getPurchases();
       res.json(purchases);
@@ -196,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/purchases", async (req, res) => {
+  app.post("/api/purchases", async (req: Request, res: Response) => {
     try {
       const data = newPurchaseSchema.parse(req.body);
       const purchase = await storage.createPurchase(data);
@@ -207,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stock management
-  app.get("/api/stock/current", async (req, res) => {
+  app.get("/api/stock/current", async (req: Request, res: Response) => {
     try {
       const stock = await storage.getCurrentStock();
       res.json(stock);
@@ -219,7 +244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     "/api/stock/low",
     authMiddleware(["ADMIN", "KITCHEN", "CASHIER"]), // Add KITCHEN role
-    async (req, res) => {
+    async (req: Request, res: Response) => {
       try {
         const lowStock = await storage.getLowStockItems();
         res.json(lowStock);
@@ -229,7 +254,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  app.post("/api/stock/adjust", async (req, res) => {
+  app.post("/api/stock/adjust", async (req: Request, res: Response) => {
     try {
       const data = stockAdjustmentSchema.parse(req.body);
       await storage.adjustStock(data);
@@ -239,7 +264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/stock/movements", async (req, res) => {
+  app.get("/api/stock/movements", async (req: Request, res: Response) => {
     try {
       const itemId = req.query.itemId as string;
       const movements = await storage.getStockMovements(itemId);
@@ -250,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sales
-  app.get("/api/sales", async (req, res) => {
+  app.get("/api/sales", async (req: Request, res: Response) => {
     try {
       const from = req.query.from
         ? new Date(req.query.from as string)
@@ -263,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/sales", async (req: any, res) => {
+  app.post("/api/sales", async (req: Request, res: Response) => {
     try {
       const adminUserId = await getAdminUserId();
       const data = newSaleSchema.parse(req.body);
@@ -274,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/sales/:id/items", async (req, res) => {
+  app.get("/api/sales/:id/items", async (req: Request, res: Response) => {
     try {
       const items = await storage.getSaleItems(req.params.id);
       res.json(items);
@@ -286,7 +311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     "/api/kitchen/orders",
     authMiddleware("KITCHEN"),
-    async (req, res) => {
+    async (req: Request, res: Response) => {
       try {
         const orders = await storage.getPendingOrders();
         res.json(orders);
@@ -298,7 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch(
     "/api/sale-items/:id/status",
     authMiddleware("KITCHEN"),
-    async (req, res) => {
+    async (req: Request, res: Response) => {
       try {
         const { status } = req.body;
         if (!status) {
@@ -317,7 +342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
   // Cash sessions
-  app.get("/api/sessions", async (req, res) => {
+  app.get("/api/sessions", async (req: Request, res: Response) => {
     try {
       console.log("📝 Fetching cash sessions from SQLite...");
       const sessions = await storage.getCashSessions();
@@ -329,7 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/sessions/active", async (req, res) => {
+  app.get("/api/sessions/active", async (req: Request, res: Response) => {
     try {
       console.log("📝 Checking for active cash session in SQLite...");
       const session = await storage.getActiveCashSession();
@@ -344,7 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/sessions/open", async (req: any, res) => {
+  app.post("/api/sessions/open", async (req: Request, res: Response) => {
     try {
       const adminUserId = await getAdminUserId();
       console.log(
@@ -396,14 +421,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/sessions/:id/close", async (req: any, res) => {
+  app.post("/api/sessions/:id/close", async (req: Request, res: Response) => {
     try {
       const adminUserId = await getAdminUserId();
       const body = closeSessionSchema.parse(req.body);
 
       const session = await storage.closeCashSession(
         req.params.id,
-        body.closingFloat,
+        body.closingFloat.toString(),
         body.notes,
         adminUserId
       );
@@ -429,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Expenses
-  app.get("/api/expenses", async (req, res) => {
+  app.get("/api/expenses", async (req: Request, res: Response) => {
     try {
       const expenses = await storage.getExpenses();
       res.json(expenses);
@@ -438,7 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/expenses", async (req, res) => {
+  app.post("/api/expenses", async (req: Request, res: Response) => {
     try {
       const data = insertExpenseSchema.parse(req.body);
       const expense = await storage.createExpense(data);
@@ -449,7 +474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reports
-  app.get("/api/reports/overview", async (req, res) => {
+  app.get("/api/reports/overview", async (req: Request, res: Response) => {
     try {
       const kpis = await storage.getTodayKPIs();
       res.json(kpis);
@@ -458,7 +483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports/top-products", async (req, res) => {
+  app.get("/api/reports/top-products", async (req: Request, res: Response) => {
     try {
       const from = req.query.from
         ? new Date(req.query.from as string)
@@ -477,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports/activity", async (req, res) => {
+  app.get("/api/reports/activity", async (req: Request, res: Response) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const activity = await storage.getRecentActivity(limit);

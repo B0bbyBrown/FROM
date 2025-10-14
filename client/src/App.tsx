@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation, Router, Redirect } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
@@ -17,13 +17,15 @@ import { AuthContext } from "./contexts/AuthContext";
 import Kitchen from "@/pages/kitchen"; // Assuming we'll create this file
 import Help from "./pages/help.tsx";
 import RawMaterials from "@/pages/raw-materials";
+import { User } from "@shared/schema";
 
 function App() {
+  const queryClient = useQueryClient();
   const {
     data: user,
     isLoading,
     isSuccess,
-  } = useQuery({
+  } = useQuery<User | null>({
     queryKey: ["user"],
     queryFn: getCurrentUser,
     retry: false,
@@ -38,6 +40,16 @@ function App() {
     }
   }, [isAuthenticated, location, setLocation]);
 
+  const login = (user: User) => {
+    queryClient.setQueryData(["user"], user);
+    setLocation("/dashboard");
+  };
+
+  const logout = () => {
+    queryClient.setQueryData(["user"], null);
+    setLocation("/login");
+  };
+
   console.log("App authentication state:", {
     isLoading,
     isAuthenticated,
@@ -47,7 +59,9 @@ function App() {
   if (isLoading) return <div>Loading...</div>;
 
   return (
-    <AuthContext.Provider value={{ user, loading: isLoading, isAuthenticated }}>
+    <AuthContext.Provider
+      value={{ user, loading: isLoading, isAuthenticated, login, logout }}
+    >
       <TooltipProvider>
         <Router>
           <Switch>

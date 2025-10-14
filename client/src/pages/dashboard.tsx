@@ -399,7 +399,7 @@ const AdminDashboard = () => {
                           : "bg-yellow-50 border-yellow-200"
                       }`}
                       data-testid={`low-stock-${item.ingredientName
-                        .toLowerCase()
+                        ?.toLowerCase()
                         .replace(/ /g, "-")}`}
                     >
                       <div>

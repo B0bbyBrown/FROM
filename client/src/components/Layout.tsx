@@ -6,19 +6,19 @@ import {
   Coins,
   Receipt,
   BarChart3,
-  PizzaIcon,
   User,
   Bell,
   RefreshCw,
   Plus,
   ScanBarcode,
   HelpCircle,
+  Briefcase,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getActiveCashSession, getLowStock } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "../lib/api";
@@ -44,12 +44,17 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, title, description }: LayoutProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   const handleLogout = async () => {
     await apiRequest("POST", "/api/auth/logout");
-    setLocation("/login");
+    logout();
+  };
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries();
   };
 
   const { data: activeSession } = useQuery({
@@ -146,16 +151,16 @@ export default function Layout({ children, title, description }: LayoutProps) {
         <div className="p-6 border-b border-border" data-testid="logo-section">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <PizzaIcon className="h-6 w-6 text-primary-foreground" />
+              <Briefcase className="h-6 w-6 text-primary-foreground" />
             </div>
             <div>
               <h1
                 className="text-lg font-bold text-foreground"
                 data-testid="app-title"
               >
-                Pizza Truck Ops
+                Business Tracker
               </h1>
-              <p className="text-sm text-muted-foreground">Operations Hub</p>
+              <p className="text-sm text-muted-foreground">Dashboard</p>
             </div>
           </div>
         </div>
@@ -305,7 +310,12 @@ export default function Layout({ children, title, description }: LayoutProps) {
               >
                 <HelpCircle className="h-4 w-4" />
               </Button>
-              <Button variant="default" size="sm" data-testid="refresh-button">
+              <Button
+                variant="default"
+                size="sm"
+                data-testid="refresh-button"
+                onClick={handleRefresh}
+              >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh
               </Button>

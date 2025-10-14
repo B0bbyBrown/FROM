@@ -163,6 +163,12 @@ export async function seed() {
           quantity: child.quantity,
         });
       }
+      // Add initial stock for manufactured items
+      await storage.createInventoryLot({
+        itemId: parentId,
+        quantity: 100,
+        unitCost: 0.5, // Arbitrary cost
+      });
     }
 
     console.log("Seeding suppliers...");

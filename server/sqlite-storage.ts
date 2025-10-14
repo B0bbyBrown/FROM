@@ -582,10 +582,16 @@ export class SqliteStorage implements IStorage {
         totalCogs += consumeItemRecursive(item.itemId, item.qty);
       }
 
+      const activeSession = db
+        .select()
+        .from(cashSessions)
+        .where(isNull(cashSessions.closedAt))
+        .get();
+
       const created = db
         .insert(sales)
         .values({
-          sessionId: sale.sessionId || null,
+          sessionId: activeSession?.id || null,
           userId,
           total: totalRevenue,
           cogs: totalCogs,

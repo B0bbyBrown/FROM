@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-label="Wheely Good Pizza Tracker Architecture Spider Diagram">
+  <defs>
+    <style>
+      .title { font: 700 28px 'Segoe UI', Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 600 16px 'Segoe UI', Arial, sans-serif; fill: #334155; }
+      .text { font: 400 14px 'Segoe UI', Arial, sans-serif; fill: #1f2937; }
+      .small { font: 400 12px 'Segoe UI', Arial, sans-serif; fill: #475569; }
+      .node { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 10; }
+      .chip { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1.25; rx: 8; }
+      .center { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 2; rx: 14; }
+      .emph { fill: #0ea5e9; }
+      .line { stroke: #94a3b8; stroke-width: 2.5; }
+      .line-bold { stroke: #64748b; stroke-width: 3; }
+      .bg { fill: #ffffff; }
+      .tag { fill: #e0f2fe; stroke: #bae6fd; stroke-width: 1; rx: 6; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1400" height="900" class="bg" />
+
+  <!-- Title -->
+  <text x="700" y="60" text-anchor="middle" class="title">Wheely Good Pizza Tracker – Architecture (Spider Diagram)</text>
+  <text x="700" y="88" text-anchor="middle" class="small">Offline-first • Local-only • SPA + Express + SQLite • FIFO Inventory • Session-based Ops</text>
+
+  <!-- Center Node -->
+  <rect x="525" y="110" width="350" height="120" class="center" />
+  <text x="700" y="150" text-anchor="middle" class="subtitle">Platform Core</text>
+  <text x="700" y="175" text-anchor="middle" class="text">Local SPA + REST API + SQLite</text>
+  <text x="700" y="198" text-anchor="middle" class="small">Docs: architecture/README.md, frontend/README.md, backend/README.md, database/README.md</text>
+
+  <!-- Spokes from center to 3 main nodes -->
+  <line x1="700" y1="230" x2="300" y2="330" class="line-bold" marker-end="url(#arrow)" />
+  <line x1="700" y1="230" x2="700" y2="330" class="line-bold" marker-end="url(#arrow)" />
+  <line x1="700" y1="230" x2="1100" y2="330" class="line-bold" marker-end="url(#arrow)" />
+
+  <!-- FRONTEND Node -->
+  <rect x="140" y="330" width="320" height="320" class="node" />
+  <text x="300" y="360" text-anchor="middle" class="subtitle">Frontend (React SPA)</text>
+  <rect x="160" y="380" width="280" height="34" class="chip" />
+  <text x="170" y="402" class="text">React + Vite + TypeScript</text>
+  <rect x="160" y="420" width="280" height="30" class="chip" />
+  <text x="170" y="441" class="text">TanStack Query (data fetching/cache)</text>
+  <rect x="160" y="455" width="280" height="30" class="chip" />
+  <text x="170" y="476" class="text">Radix UI (accessible components)</text>
+  <rect x="160" y="490" width="280" height="30" class="chip" />
+  <text x="170" y="511" class="text">Wouter (routing)</text>
+  <rect x="160" y="525" width="280" height="55" class="chip" />
+  <text x="170" y="546" class="text">Pages: dashboard, sessions, sales,</text>
+  <text x="170" y="565" class="text">inventory, reports, users</text>
+  <text x="160" y="603" class="small">Flows: user actions → API calls; optimistic updates; error handling</text>
+  <text x="160" y="622" class="small">Docs: frontend/README.md</text>
+
+  <!-- API Link from Frontend to Middle -->
+  <line x1="460" y1="420" x2="590" y2="420" class="line" marker-end="url(#arrow)" />
+  <text x="525" y="410" text-anchor="middle" class="small">REST JSON</text>
+
+  <!-- MIDDLE TIER Node -->
+  <rect x="540" y="330" width="320" height="360" class="node" />
+  <text x="700" y="360" text-anchor="middle" class="subtitle">Middle Tier (Express API)</text>
+  <rect x="560" y="380" width="280" height="30" class="chip" />
+  <text x="570" y="401" class="text">Express.js + TypeScript</text>
+  <rect x="560" y="415" width="280" height="30" class="chip" />
+  <text x="570" y="436" class="text">Routes: server/routes.ts</text>
+  <rect x="560" y="450" width="280" height="30" class="chip" />
+  <text x="570" y="471" class="text">Validation: Zod (request schemas)</text>
+  <rect x="560" y="485" width="280" height="30" class="chip" />
+  <text x="570" y="506" class="text">Auth: express-session + bcrypt</text>
+  <rect x="560" y="520" width="280" height="55" class="chip" />
+  <text x="570" y="541" class="text">Business logic: FIFO consumption,</text>
+  <text x="570" y="560" class="text">COGS calc, session validation</text>
+  <rect x="560" y="580" width="280" height="30" class="chip" />
+  <text x="570" y="601" class="text">Storage: server/sqlite-storage.ts</text>
+  <text x="560" y="625" class="small">Docs: backend/README.md, authentication.md</text>
+
+  <!-- DB Link from Middle to Backend -->
+  <line x1="860" y1="470" x2="1000" y2="470" class="line" marker-end="url(#arrow)" />
+  <text x="930" y="460" text-anchor="middle" class="small">Drizzle ORM</text>
+
+  <!-- BACKEND Node -->
+  <rect x="980" y="330" width="320" height="360" class="node" />
+  <text x="1140" y="360" text-anchor="middle" class="subtitle">Backend (SQLite Database)</text>
+  <rect x="1000" y="380" width="280" height="34" class="chip" />
+  <text x="1010" y="402" class="text">File: pizza-truck.db (local)</text>
+  <rect x="1000" y="420" width="280" height="55" class="chip" />
+  <text x="1010" y="441" class="text">Core tables: users, ingredients,</text>
+  <text x="1010" y="460" class="text">products, sales, cash_sessions</text>
+  <rect x="1000" y="480" width="280" height="55" class="chip" />
+  <text x="1010" y="501" class="text">Inventory: inventory_lots (FIFO),</text>
+  <text x="1010" y="520" class="text">stock_movements (audit)</text>
+  <rect x="1000" y="540" width="280" height="30" class="chip" />
+  <text x="1010" y="561" class="text">ACID, FKs, timestamps, UUIDs</text>
+  <text x="1000" y="585" class="small">Docs: database/README.md, data-model-overview.md</text>
+
+  <!-- Data Flow Legend -->
+  <rect x="520" y="730" width="360" height="120" class="node" />
+  <text x="700" y="755" text-anchor="middle" class="subtitle">Data Flow</text>
+  <text x="540" y="780" class="small">1) Frontend → API: Create Sale / Open Session / Inventory Ops</text>
+  <text x="540" y="800" class="small">2) API validates, applies FIFO/COGS, logs stock_movements</text>
+  <text x="540" y="820" class="small">3) API ↔ DB via Drizzle transactions • returns JSON to client</text>
+
+  <!-- Compliance Tag -->
+  <rect x="40" y="820" width="260" height="44" class="tag" />
+  <text x="50" y="846" class="small">Source: docs3.0/* (architecture, backend, frontend, database)</text>
+</svg>
+
+
