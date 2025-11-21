@@ -44,7 +44,7 @@ This application uses a local SQLite database for simplicity and portability:
 
 - The database file, `pizza-truck.db`, is created automatically in the project root
 - All tables are created automatically on first run
-- Only an admin user is seeded - all other data must be added through the UI
+- The database is seeded with a rich set of sample data, including multiple users (`ADMIN`, `CASHIER`, `KITCHEN`), ingredients, products, recipes, and suppliers to allow for immediate testing.
 - The database file can be safely deleted to start fresh
 
 ### Default Admin Credentials
@@ -54,7 +54,7 @@ This application uses a local SQLite database for simplicity and portability:
 
 ## Data Setup Order
 
-When starting with a fresh database, add data in this order:
+When starting with a fresh database, the seed script handles the initial data setup. If you were adding new data manually through the UI, you would follow this order:
 
 1. **Suppliers** - Add your ingredient suppliers
 2. **Ingredients** - Add ingredients with units and low stock levels

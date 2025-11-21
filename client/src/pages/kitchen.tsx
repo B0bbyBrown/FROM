@@ -125,7 +125,7 @@ const OrderCard = ({ order, mutation }) => {
             <div key={item.id} className="flex justify-between items-center">
               <div>
                 <p className="font-medium">
-                  {item.qty}x {item.productName}
+                  {item.qty}x {item.itemName || "Unknown Item"}
                 </p>
                 <Badge
                   className={`text-xs ${statusColors[item.status]}`}

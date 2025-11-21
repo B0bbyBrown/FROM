@@ -8,7 +8,7 @@
 ## Key Features
 
 - Create new purchase: Select supplier, add items (ingredient, quantity, cost).
-- **New**: Add new suppliers or ingredients on-the-fly from the dropdowns (select 'Add New' to open creation dialog).
+- **New**: Add new suppliers on-the-fly from the supplier dropdown (select 'Add New' to open a creation dialog).
 - View history of purchases.
 
 ---

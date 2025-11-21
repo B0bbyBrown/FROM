@@ -85,6 +85,7 @@ export default function Sales() {
     queryKey: ["/api/sales"],
     queryFn: () => getSales(),
     staleTime: 0, // Force refetch after invalidation
+    refetchOnMount: 'always', // Force refetch on mount
   });
 
   const createSaleMutation = useMutation({
@@ -268,7 +269,7 @@ export default function Sales() {
                   key={item.id}
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
                   onClick={() => addItemToSale(item.id)}
-                  data-testid={`product-item-${item.sku.toLowerCase()}`}
+                  data-testid={`product-item-${item.sku ? item.sku.toLowerCase() : item.id}`}
                 >
                   <div>
                     <p className="font-medium">{item.name}</p>
@@ -283,7 +284,7 @@ export default function Sales() {
                     <Button
                       size="sm"
                       className="mt-1"
-                      data-testid={`add-product-${item.sku.toLowerCase()}`}
+                      data-testid={`add-product-${item.sku ? item.sku.toLowerCase() : item.id}`}
                     >
                       <Plus className="h-3 w-3" />
                     </Button>
@@ -323,7 +324,7 @@ export default function Sales() {
                     <div
                       key={item.itemId}
                       className="flex items-center justify-between p-3 border rounded-lg"
-                      data-testid={`sale-item-${item.sku.toLowerCase()}`}
+                      data-testid={`sale-item-${item.sku ? item.sku.toLowerCase() : item.itemId}`}
                     >
                       <div className="flex-1">
                         <p className="font-medium">{item.itemName}</p>
@@ -338,13 +339,13 @@ export default function Sales() {
                           onClick={() =>
                             updateItemQuantity(item.itemId, item.qty - 1)
                           }
-                          data-testid={`decrease-qty-${item.sku.toLowerCase()}`}
+                          data-testid={`decrease-qty-${item.sku ? item.sku.toLowerCase() : item.itemId}`}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
                         <span
                           className="w-8 text-center"
-                          data-testid={`qty-${item.sku.toLowerCase()}`}
+                          data-testid={`qty-${item.sku ? item.sku.toLowerCase() : item.itemId}`}
                         >
                           {item.qty}
                         </span>
@@ -354,7 +355,7 @@ export default function Sales() {
                           onClick={() =>
                             updateItemQuantity(item.itemId, item.qty + 1)
                           }
-                          data-testid={`increase-qty-${item.sku.toLowerCase()}`}
+                          data-testid={`increase-qty-${item.sku ? item.sku.toLowerCase() : item.itemId}`}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -365,7 +366,7 @@ export default function Sales() {
                           size="sm"
                           variant="outline"
                           onClick={() => removeItemFromSale(item.itemId)}
-                          data-testid={`remove-item-${item.sku.toLowerCase()}`}
+                          data-testid={`remove-item-${item.sku ? item.sku.toLowerCase() : item.itemId}`}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>

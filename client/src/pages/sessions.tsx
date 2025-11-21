@@ -227,10 +227,10 @@ export default function Sessions() {
 
   const handleOpenSession = () => {
     // Validation
-    if (!openingFloat || isNaN(parseFloat(openingFloat))) {
+    if (!openingFloat || parseFloat(openingFloat) <= 0) {
       toast({
         title: "Error",
-        description: "Please enter the opening float amount",
+        description: "Float must be positive",
         variant: "destructive",
       });
       return;

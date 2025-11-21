@@ -2,27 +2,26 @@
 
 ## Overview
 
-The Wheely Good Pizza Tracker API is a RESTful service built with Express.js. All endpoints are available at `http://localhost:5082/api`.
+The Wheely Good Pizza Tracker API is a RESTful service built with Express.js. All endpoints are available at `/api`.
 
 ## Authentication
 
-The application runs locally without authentication. All API endpoints are accessible without credentials.
+The API uses a session-based authentication system. Users must log in via the `/api/auth/login` endpoint to acquire a session cookie. This cookie must be included in all subsequent requests to protected endpoints.
+
+### Roles & Authorization
+
+Most endpoints are protected and require a specific user role. The API will return a `401 Unauthorized` error if no session is active, or a `403 Forbidden` error if the user's role does not have permission to access the endpoint.
+
+The roles are:
+- **`ADMIN`**: Full access to all endpoints, including user management and reporting.
+- **`CASHIER`**: Access to sales, session management, and some inventory endpoints.
+- **`KITCHEN`**: Access to kitchen-specific endpoints (e.g., viewing orders) and some inventory information.
 
 ## Common Patterns
 
 ### Response Format
 
-Success responses return JSON:
-
-```json
-{
-  "field1": "value1",
-  "field2": "value2"
-}
-```
-
-Error responses follow this format:
-
+Success responses return JSON. Error responses follow this format:
 ```json
 {
   "error": "Error message",
@@ -30,266 +29,304 @@ Error responses follow this format:
 }
 ```
 
-### Date Handling
-
-- All dates are Unix timestamps (seconds since epoch)
-- Stored as INTEGER in SQLite
-- Sent as numbers in JSON
-
-### Currency
-
-- All monetary values are in ZAR (South African Rand)
-- Stored as REAL in SQLite
-- Sent as strings in JSON to preserve precision
-
 ## Endpoints
 
-### Cash Sessions
+---
 
-#### GET /api/sessions
+### Authentication
 
-List all cash sessions.
+#### `POST /api/auth/login`
+Logs a user in and establishes a session.
 
-#### GET /api/sessions/active
-
-Get currently active session (if any).
-
-#### POST /api/sessions/open
-
-Open a new cash session.
-
+**Request Body:**
 ```json
 {
-  "openingFloat": "100.00",
-  "notes": "Morning shift",
-  "inventory": [
-    {
-      "ingredientId": "uuid",
-      "quantity": "10.5"
-    }
-  ]
+  "email": "admin@pizzatruck.com",
+  "password": "password"
 }
 ```
 
-#### POST /api/sessions/:id/close
+#### `POST /api/auth/logout`
+Logs the current user out and destroys the session.
 
-Close an active session.
+#### `GET /api/auth/me`
+_Authentication required._
+Returns the currently authenticated user's information.
 
+---
+
+### User Management
+
+#### `GET /api/users`
+_Requires `ADMIN` role._
+Lists all users in the system.
+
+#### `POST /api/users`
+_Requires `ADMIN` role._
+Creates a new user.
+
+**Request Body:**
 ```json
 {
-  "closingFloat": "250.00",
-  "notes": "End of day",
-  "inventory": [
-    {
-      "ingredientId": "uuid",
-      "quantity": "8.2"
-    }
-  ]
+  "name": "Jane Doe",
+  "email": "cashier@pizzatruck.com",
+  "password": "password123",
+  "role": "CASHIER"
 }
 ```
 
-### Sales
+---
 
-#### GET /api/sales
+### Items (Ingredients & Products)
 
-List all sales. Supports optional `?from` and `?to` date string query parameters to filter by a date range.
+The system uses a unified `items` model for all inventoried entities. The `type` field differentiates them: `RAW` (ingredients), `MANUFACTURED` (sub-assemblies), and `SELLABLE` (products).
 
-#### GET /api/sales/:id/items
+#### `GET /api/raw-materials`
+_Authentication required._
+List all items of all types.
 
-Get the line items for a specific sale.
+#### `POST /api/raw-materials`
+_Requires `ADMIN` role._
+Create a new item (ingredient, sub-assembly, or sellable product). The `recipe` array is optional and only applies to `MANUFACTURED` or `SELLABLE` items.
 
-#### POST /api/sales
-
-Create a new sale.
-
+**Request Body:**
 ```json
 {
-  "sessionId": "uuid",
-  "paymentType": "CASH",
-  "items": [
-    {
-      "productId": "uuid",
-      "qty": 2
-    }
-  ]
-}
-```
-
-### Inventory
-
-#### GET /api/ingredients
-
-List all ingredients.
-
-#### GET /api/stock/current
-
-Get the current aggregated stock level for all ingredients.
-
-#### POST /api/ingredients
-
-Create a new ingredient.
-
-```json
-{
-  "name": "Mozzarella",
-  "unit": "kg",
-  "lowStockLevel": 5.0
-}
-```
-
-#### GET /api/stock/low
-
-Get ingredients below low stock level.
-
-#### GET /api/stock/movements
-
-Get stock movements for a specific ingredient, requires `?ingredientId=uuid` query parameter.
-
-#### POST /api/stock/adjust
-
-Adjust stock levels.
-
-```json
-{
-  "ingredientId": "uuid",
-  "quantity": "5.0",
-  "note": "Stock count adjustment"
-}
-```
-
-### Products
-
-#### GET /api/products
-
-List all products.
-
-#### POST /api/products
-
-Create a new product. The `recipe` array is optional.
-
-```json
-{
-  "name": "Margherita",
-  "sku": "PIZ-001",
-  "price": "89.99",
+  "name": "Margherita Pizza",
+  "sku": "PIZ-MAR",
+  "type": "SELLABLE",
+  "unit": "unit",
+  "price": 12.00,
+  "lowStockLevel": 10,
   "recipe": [
     {
-      "ingredientId": "uuid",
+      "childItemId": "uuid-of-pizza-dough",
+      "quantity": 1
+    },
+    {
+      "childItemId": "uuid-of-tomato-sauce",
       "quantity": 0.2
     }
   ]
 }
 ```
 
-#### GET /api/products/:id/recipe
+#### `GET /api/raw-materials/:id/recipe`
+_Authentication required._
+Get the recipe for a specific `MANUFACTURED` or `SELLABLE` item.
 
-Get the recipe for a specific product.
+---
 
-### Purchases
+### Cash Sessions
 
-#### GET /api/purchases
+#### `GET /api/sessions`
+_Authentication required._
+List all cash sessions.
 
-List all purchases.
+#### `GET /api/sessions/active`
+_Authentication required._
+Get the currently active session, if any. Returns `null` if no session is active.
 
-#### POST /api/purchases
+#### `POST /api/sessions/open`
+_Requires `CASHIER` or `ADMIN` role._
+Opens a new cash session. Fails if a session is already active.
 
-Create a new purchase.
-
+**Request Body:**
 ```json
 {
-  "supplierId": "uuid",
-  "notes": "Weekly order",
-  "items": [
+  "openingFloat": 100.00,
+  "notes": "Morning shift",
+  "inventory": [
     {
-      "ingredientId": "uuid",
-      "quantity": "10",
-      "totalCost": "450.00"
+      "itemId": "uuid-of-flour",
+      "quantity": "10.5"
     }
   ]
 }
 ```
 
-### Suppliers
+#### `POST /api/sessions/:id/close`
+_Requires `CASHIER` or `ADMIN` role._
+Closes an active session.
 
-#### GET /api/suppliers
-
-List all suppliers.
-
-#### POST /api/suppliers
-
-Create a new supplier.
-
+**Request Body:**
 ```json
 {
-  "name": "Food Corp",
-  "phone": "+27123456789",
-  "email": "orders@foodcorp.com"
+  "closingFloat": 250.00,
+  "notes": "End of day",
+  "inventory": [
+    {
+      "itemId": "uuid-of-flour",
+      "quantity": "8.2"
+    }
+  ]
 }
 ```
 
+---
+
+### Sales
+
+#### `GET /api/sales`
+_Authentication required._
+List all sales. Supports optional `?from` and `to` date string query parameters to filter by a date range.
+
+#### `POST /api/sales`
+_Requires `CASHIER` or `ADMIN` role._
+Creates a new sale. An active session is recommended but not strictly required.
+
+**Request Body:**
+```json
+{
+  "sessionId": "uuid-of-active-session",
+  "paymentType": "CASH",
+  "items": [
+    {
+      "itemId": "uuid-of-margherita-pizza",
+      "qty": 2
+    }
+  ]
+}
+```
+
+#### `GET /api/sales/:id/items`
+_Authentication required._
+Gets the line items for a specific sale.
+
+---
+
+### Kitchen
+
+#### `GET /api/kitchen/orders`
+_Requires `KITCHEN` role._
+Gets a list of all current sale items that have a `PENDING` or `PREPPING` status.
+
+#### `PATCH /api/sale-items/:id/status`
+_Requires `KITCHEN` role._
+Updates the status of a specific line item in a sale.
+
+**Request Body:**
+```json
+{
+  "status": "PREPPING"
+}
+```
+
+---
+
+### Stock Management
+
+#### `GET /api/stock/current`
+_Authentication required._
+Gets the current aggregated stock level for all items.
+
+#### `GET /api/stock/low`
+_Authentication required._
+Gets items that are below their configured low stock level.
+
+#### `POST /api/stock/adjust`
+_Requires `ADMIN` or `CASHIER` role._
+Adjusts stock levels for an item. Creates an `ADJUSTMENT` or `WASTAGE` stock movement record.
+
+**Request Body:**
+```json
+{
+  "itemId": "uuid-of-flour",
+  "quantity": "-0.5",
+  "note": "Wastage"
+}
+```
+
+#### `GET /api/stock/movements`
+_Authentication required._
+Gets stock movements. Can be filtered by item with `?itemId=uuid` query parameter.
+
+---
+
+### Purchases & Suppliers
+
+#### `GET /api/purchases`
+_Authentication required._
+List all purchases.
+
+#### `POST /api/purchases`
+_Requires `ADMIN` or `CASHIER` role._
+Creates a new purchase, which creates `inventory_lots` and `PURCHASE` stock movements.
+
+**Request Body:**
+```json
+{
+  "supplierId": "uuid-of-supplier",
+  "notes": "Weekly order",
+  "items": [
+    {
+      "itemId": "uuid-of-flour",
+      "quantity": "50",
+      "totalCost": "100.00"
+    }
+  ]
+}
+```
+
+#### `GET /api/suppliers`
+_Authentication required._
+List all suppliers.
+
+#### `POST /api/suppliers`
+_Requires `ADMIN` or `CASHIER` role._
+Creates a new supplier.
+
+**Request Body:**
+```json
+{
+  "name": "Restaurant Wholesale",
+  "phone": "123-456-7890",
+  "email": "orders@rw.com"
+}
+```
+
+---
+
 ### Expenses
 
-#### GET /api/expenses
-
+#### `GET /api/expenses`
+_Requires `ADMIN` role._
 List all expenses.
 
-#### POST /api/expenses
+#### `POST /api/expenses`
+_Requires `ADMIN` role._
+Creates a new expense.
 
-Create a new expense.
-
+**Request Body:**
 ```json
 {
   "label": "Marketing Flyers",
-  "amount": "350.00",
+  "amount": 350.00,
   "paidVia": "CARD"
 }
 ```
 
+---
+
 ### Reports
 
-#### GET /api/reports/overview
+#### `GET /api/reports/overview`
+_Requires `ADMIN` role._
+Gets today's key performance indicators (KPIs).
 
-Get today's KPIs.
+#### `GET /api/reports/top-products`
+_Requires `ADMIN` role._
+Gets top-selling products. Supports optional `from` and `to` date string query parameters.
 
-#### GET /api/reports/top-products
-
-Get top-selling products. Supports optional `?from` and `?to` date string query parameters to filter by a date range.
-
-#### GET /api/reports/activity
-
-Get recent activity feed. Supports an optional `?limit=N` query parameter.
+#### `GET /api/reports/activity`
+_Requires `ADMIN` role._
+Gets a recent activity feed. Supports an optional `limit=N` query parameter.
 
 ## Error Codes
 
 - `400` - Bad Request (invalid input)
+- `401` - Unauthorized (not logged in)
+- `403` - Forbidden (logged in, but insufficient role)
 - `404` - Not Found
 - `409` - Conflict (e.g., session already active)
 - `500` - Server Error
-
-## Development Tools
-
-### Testing Endpoints
-
-Use tools like:
-
-- cURL
-- Postman
-- Thunder Client (VS Code)
-
-Example cURL:
-
-```bash
-# Get active session
-curl http://localhost:5082/api/sessions/active
-
-# Create ingredient
-curl -X POST http://localhost:5082/api/ingredients \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Flour","unit":"kg","lowStockLevel":10}'
-```
-
-### Debugging
-
-- All routes log to console
-- Check server logs for detailed error information
-- Use browser dev tools Network tab

@@ -143,46 +143,43 @@ const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
 ### API Integration
 
-All API calls go through `lib/api.ts`:
+All API calls go through `lib/api.ts`, which uses a universal `apiRequest` function. Functions for specific endpoints are exported directly.
 
 ```typescript
-export const api = {
-  // Sessions
-  getActiveCashSession: () => apiRequest("GET", "/api/sessions/active"),
-  openCashSession: (data: OpenSessionRequest) =>
-    apiRequest("POST", "/api/sessions/open", data),
+// lib/api.ts
 
-  // Sales
-  createSale: (data: NewSale) => apiRequest("POST", "/api/sales", data),
+// Universal request handler
+export async function apiRequest(method: string, url: string, data?: any) {
+  const options: RequestInit = {
+    method,
+    headers: { "Content-Type": "application/json" },
+    credentials: "include", // For sessions/cookies
+    body: data ? JSON.stringify(data) : undefined,
+  };
 
-  // ... other endpoints
-};
+  const baseUrl =
+    import.meta.env.MODE === "development"
+      ? `${window.location.protocol}//${window.location.hostname}:5082`
+      : window.location.origin;
+
+  const response = await fetch(`${baseUrl}${url}`, options);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "API request failed");
+  }
+
+  return response.json();
+}
+
+// Example of an exported endpoint function
+export const getItems = () => apiRequest("GET", "/api/items");
+export const createSale = (data: NewSale) => apiRequest("POST", "/api/sales", data);
 ```
 
 ### Error Handling
 
-Consistent error handling through `queryClient.ts`:
-
-```typescript
-export async function apiRequest(
-  method: string,
-  url: string,
-  data?: unknown
-): Promise<Response> {
-  const res = await fetch(`${API_BASE}${url}`, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-  });
-
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || "An error occurred");
-  }
-
-  return res.json();
-}
-```
+Error handling is managed within the `apiRequest` function. If a response is not `ok`, it throws an error with the message from the API, which is then caught by TanStack Query's `onError` handler in the UI.
 
 ## Utilities
 
@@ -261,32 +258,6 @@ npm run check
 - Memoize expensive calculations
 - Optimize re-renders
 - Use proper keys in lists
-
-## Testing
-
-### Component Testing
-
-```typescript
-import { render, screen } from "@testing-library/react";
-import { Layout } from "./Layout";
-
-test("renders layout with title", () => {
-  render(<Layout title="Test">Content</Layout>);
-  expect(screen.getByText("Test")).toBeInTheDocument();
-});
-```
-
-### Integration Testing
-
-```typescript
-import { renderWithClient } from "../test-utils";
-import { Dashboard } from "./Dashboard";
-
-test("displays KPIs", async () => {
-  const { findByText } = renderWithClient(<Dashboard />);
-  expect(await findByText("Today's Revenue")).toBeInTheDocument();
-});
-```
 
 ## Troubleshooting
 
