@@ -22,7 +22,7 @@ import {
   getLowStock,
   getRecentActivity,
 } from "@/lib/api";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   ChartContainer,
   ChartTooltip,
@@ -152,6 +152,8 @@ const AdminDashboard = () => {
     return `${num.toFixed(1)}%`;
   };
 
+  const [, setLocation] = useLocation();
+
   return (
     <>
       {/* KPI Cards */}
@@ -159,7 +161,7 @@ const AdminDashboard = () => {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
         data-testid="kpi-cards"
       >
-        <Card data-testid="revenue-card">
+        <Card data-testid="kpi-revenue" onClick={() => setLocation('/reports')}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -190,7 +192,7 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card data-testid="cogs-card">
+        <Card data-testid="kpi-cogs" onClick={() => setLocation('/reports')}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -222,7 +224,7 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card data-testid="margin-card">
+        <Card data-testid="kpi-margin" onClick={() => setLocation('/reports')}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -320,11 +322,11 @@ const AdminDashboard = () => {
                   <div
                     key={product.productId}
                     className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
-                    data-testid={`product-${product.sku.toLowerCase()}`}
+                    data-testid={`product-${product.sku?.toLowerCase() || 'unknown'}`}
                   >
                     <div className="flex items-center space-x-4">
                       <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        {product.sku.includes("PIZ") ? (
+                        {product.sku && product.sku.includes("PIZ") ? (
                           <PizzaIcon className="h-5 w-5 text-primary" />
                         ) : (
                           <PillBottle className="h-5 w-5 text-blue-600" />
@@ -333,25 +335,25 @@ const AdminDashboard = () => {
                       <div>
                         <p
                           className="font-medium text-foreground"
-                          data-testid={`product-name-${product.sku.toLowerCase()}`}
+                          data-testid={`product-name-${product.sku?.toLowerCase() || 'unknown'}`}
                         >
                           {product.productName}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          SKU: {product.sku}
+                          SKU: {product.sku || "N/A"}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p
                         className="font-semibold text-foreground"
-                        data-testid={`product-qty-${product.sku.toLowerCase()}`}
+                        data-testid={`product-qty-${product.sku?.toLowerCase() || 'unknown'}`}
                       >
                         {product.totalQty} sold
                       </p>
                       <p
                         className="text-sm text-green-600"
-                        data-testid={`product-revenue-${product.sku.toLowerCase()}`}
+                        data-testid={`product-revenue-${product.sku?.toLowerCase() || 'unknown'}`}
                       >
                         {formatCurrency(product.totalRevenue)}
                       </p>

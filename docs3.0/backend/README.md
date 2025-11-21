@@ -11,6 +11,10 @@ The backend code is located in the `server/` directory and is organized as follo
 - **`db.ts`**: Establishes the connection to the SQLite database using Drizzle ORM.
 - **`storage.ts`** & **`sqlite-storage.ts`**: Defines the interface and implementation for all database operations.
 - **`seed.ts`**: A script for populating the database with initial data.
+- **`lib/`**: Contains core business logic.
+  - **`auth.ts`**: Password hashing and authentication helpers.
+  - **`database.ts`**: Low-level database connection setup.
+  - **`fifo.ts`**: The FIFO (First-In, First-Out) inventory consumption logic.
 
 ## Technology Stack
 

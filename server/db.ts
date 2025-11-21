@@ -6,13 +6,24 @@ import path from "path";
 import fs from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, "..", "..", "pizza-truck.db");
+// Use a separate test database when running E2E tests
+const DB_PATH = process.env.CYPRESS_TEST
+  ? path.join(__dirname, "..", "..", "pizza-truck-test.db")
+  : path.join(__dirname, "..", "..", "pizza-truck.db");
 
 // Reset database if RESET_DB is set
 if (process.env.RESET_DB) {
   if (fs.existsSync(DB_PATH)) {
-    fs.unlinkSync(DB_PATH);
-    console.log("💥 Database reset");
+    try {
+      fs.unlinkSync(DB_PATH);
+      console.log("💥 Database reset");
+    } catch (error: any) {
+      if (error.code === "EBUSY") {
+        console.log("⚠️  Database file is locked, will reset tables instead");
+      } else {
+        throw error;
+      }
+    }
   }
 }
 

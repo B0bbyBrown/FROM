@@ -84,7 +84,7 @@ export const getActiveCashSession = () =>
   apiRequest("GET", "/api/sessions/active");
 export const getCurrentUser = async () => {
   try {
-    const response = await apiRequest("/api/auth/me");
+    const response = await apiRequest("GET", "/api/auth/me");
     return response.user;
   } catch (error) {
     if (error.status === 401) {

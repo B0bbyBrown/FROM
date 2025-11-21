@@ -1,8 +1,22 @@
 import { storage } from "./storage";
 import { hashPassword } from "./lib/auth";
+import { db } from "./db";
+import {
+  cashSessions,
+  sales,
+  saleItems,
+  expenses,
+  purchases,
+  purchaseItems,
+  inventoryLots,
+  stockMovements,
+  sessionInventorySnapshots,
+} from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 export async function seed() {
-  console.log("Starting seed process...");
+  console.log("🌱 Starting seed process...");
 
   try {
     // Create admin user (idempotent) - this is the only required seed data
@@ -70,31 +84,30 @@ export async function seed() {
     // Seed Items
     const itemData = [
       // Raw Materials
-      { name: "Flour", type: "RAW", unit: "kg", lowStockLevel: 10 },
-      { name: "Yeast", type: "RAW", unit: "g", lowStockLevel: 100 },
-      { name: "Water", type: "RAW", unit: "L", lowStockLevel: 20 },
-      { name: "Salt", type: "RAW", unit: "kg", lowStockLevel: 1 },
-      { name: "Tomato Sauce", type: "RAW", unit: "L", lowStockLevel: 5 },
-      { name: "Mozzarella Cheese", type: "RAW", unit: "kg", lowStockLevel: 5 },
-      { name: "Pepperoni", type: "RAW", unit: "kg", lowStockLevel: 2 },
-      {
-        name: "Canned Soda",
-        type: "SELLABLE",
-        unit: "can",
-        lowStockLevel: 24,
-        price: 2.5,
-        sku: "DR-COKE",
-      },
+      { name: "Pizza Base", type: "RAW", unit: "kg", lowStockLevel: 10 },
+      { name: "Pepperoni", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Cheese", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Tomatoes", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Onions", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Garlic", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Basil", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Oregano", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Salt", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Pepper", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Olive Oil", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Pizza Sauce", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Tomato Sauce", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Mozzarella Cheese", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Pineapple", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Mushrooms", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Bell Peppers", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Olives", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Anchovies", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Chicken", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Beef", type: "RAW", unit: "g", lowStockLevel: 100 },
+      { name: "Pork", type: "RAW", unit: "g", lowStockLevel: 100 },
 
-      // Manufactured Items (Sub-assemblies)
-      {
-        name: "Pizza Dough",
-        type: "MANUFACTURED",
-        unit: "ball",
-        lowStockLevel: 10,
-      },
-
-      // Sellable Products
+      // Pizza Menu
       {
         name: "Margherita Pizza",
         type: "SELLABLE",
@@ -109,6 +122,68 @@ export async function seed() {
         price: 14.0,
         sku: "PIZ-PEP",
       },
+      {
+        name: "Hawaiian Pizza",
+        type: "SELLABLE",
+        unit: "unit",
+        price: 16.0,
+        sku: "PIZ-HAW",
+      },
+      {
+        name: "Veggie Pizza",
+        type: "SELLABLE",
+        unit: "unit",
+        price: 18.0,
+        sku: "PIZ-VEG",
+      },
+      {
+        name: "Meat Lovers Pizza",
+        type: "SELLABLE",
+        unit: "unit",
+        price: 20.0,
+        sku: "PIZ-ML",
+      },
+      {
+        name: "Cheese Pizza",
+        type: "SELLABLE",
+        unit: "unit",
+        price: 12.0,
+        sku: "PIZ-CHE",
+      },
+    ];
+
+    //Other Menu Items
+    const otherItemData = [
+      {
+        name: "Coca-Cola",
+        type: "SELLABLE",
+        unit: "can",
+        price: 2.5,
+      },
+      {
+        name: "Pepsi",
+        type: "SELLABLE",
+        unit: "can",
+        price: 2.5,
+      },
+      {
+        name: "Sprite",
+        type: "SELLABLE",
+        unit: "can",
+        price: 2.5,
+      },
+      {
+        name: "Fanta",
+        type: "SELLABLE",
+        unit: "can",
+        price: 2.5,
+      },
+      {
+        name: "7Up",
+        type: "SELLABLE",
+        unit: "can",
+        price: 2.5,
+      },
     ];
 
     const itemIds: { [key: string]: string } = {};
@@ -122,21 +197,24 @@ export async function seed() {
       itemIds[item.name] = newItem.id;
     }
 
+    const otherItemIds: { [key: string]: string } = {};
+    for (const item of otherItemData) {
+      let existing = await storage.getItemByName(item.name);
+      if (existing) {
+        otherItemIds[item.name] = existing.id;
+        continue;
+      }
+      const newItem = await storage.createItem(item as any);
+
+      otherItemIds[item.name] = newItem.id;
+    }
+
     // Seed Recipes
     const recipeData = [
       {
-        parent: "Pizza Dough",
-        children: [
-          { child: "Flour", quantity: 0.5 }, // 0.5 kg
-          { child: "Yeast", quantity: 10 }, // 10 g
-          { child: "Water", quantity: 0.3 }, // 0.3 L
-          { child: "Salt", quantity: 0.01 }, // 0.01 kg
-        ],
-      },
-      {
         parent: "Margherita Pizza",
         children: [
-          { child: "Pizza Dough", quantity: 1 },
+          { child: "Pizza Base", quantity: 1 },
           { child: "Tomato Sauce", quantity: 0.2 },
           { child: "Mozzarella Cheese", quantity: 0.15 },
         ],
@@ -144,7 +222,34 @@ export async function seed() {
       {
         parent: "Pepperoni Pizza",
         children: [
-          { child: "Pizza Dough", quantity: 1 },
+          { child: "Pizza Base", quantity: 1 },
+          { child: "Tomato Sauce", quantity: 0.2 },
+          { child: "Mozzarella Cheese", quantity: 0.15 },
+          { child: "Pepperoni", quantity: 0.1 },
+        ],
+      },
+      {
+        parent: "Hawaiian Pizza",
+        children: [
+          { child: "Pizza Base", quantity: 1 },
+          { child: "Tomato Sauce", quantity: 0.2 },
+          { child: "Mozzarella Cheese", quantity: 0.15 },
+          { child: "Pineapple", quantity: 0.1 },
+        ],
+      },
+      {
+        parent: "Veggie Pizza",
+        children: [
+          { child: "Pizza Base", quantity: 1 },
+          { child: "Tomato Sauce", quantity: 0.2 },
+          { child: "Mozzarella Cheese", quantity: 0.15 },
+          { child: "Mushrooms", quantity: 0.1 },
+        ],
+      },
+      {
+        parent: "Meat Lovers Pizza",
+        children: [
+          { child: "Pizza Base", quantity: 1 },
           { child: "Tomato Sauce", quantity: 0.2 },
           { child: "Mozzarella Cheese", quantity: 0.15 },
           { child: "Pepperoni", quantity: 0.1 },
@@ -167,7 +272,7 @@ export async function seed() {
       await storage.createInventoryLot({
         itemId: parentId,
         quantity: 100,
-        unitCost: 0.5, // Arbitrary cost
+        unitCost: 0.5,
       });
     }
 
@@ -186,7 +291,7 @@ export async function seed() {
       },
     ];
 
-    const supplierIds = {};
+    const supplierIds: { [key: string]: string } = {};
     for (const supplier of supplierData) {
       let existing = await storage.getSupplierByName(supplier.name);
       if (existing) {
@@ -203,19 +308,20 @@ export async function seed() {
       {
         supplier: "General Supplier",
         items: [
-          { item: "Flour", quantity: 50, totalCost: 100 }, // e.g., 50kg at $2/kg
-          { item: "Yeast", quantity: 5000, totalCost: 50 }, // 5000g at $0.01/g
-          { item: "Water", quantity: 100, totalCost: 10 }, // 100L at $0.1/L
-          { item: "Salt", quantity: 10, totalCost: 5 }, // 10kg at $0.5/kg
+          { item: "Pizza Base", quantity: 50, totalCost: 100 },
+          { item: "Tomato Sauce", quantity: 50, totalCost: 150 },
+          { item: "Mozzarella Cheese", quantity: 20, totalCost: 200 },
+          { item: "Pepperoni", quantity: 10, totalCost: 100 },
         ],
         notes: "Initial stock purchase for basics",
       },
       {
         supplier: "Dairy Supplier",
         items: [
-          { item: "Tomato Sauce", quantity: 50, totalCost: 150 }, // 50L at $3/L
-          { item: "Mozzarella Cheese", quantity: 20, totalCost: 200 }, // 20kg at $10/kg
-          { item: "Pepperoni", quantity: 10, totalCost: 100 }, // 10kg at $10/kg
+          { item: "Pizza Base", quantity: 50, totalCost: 100 },
+          { item: "Tomato Sauce", quantity: 50, totalCost: 150 },
+          { item: "Mozzarella Cheese", quantity: 20, totalCost: 200 },
+          { item: "Pepperoni", quantity: 10, totalCost: 100 },
         ],
         notes: "Dairy and sauce purchase",
       },
@@ -250,10 +356,161 @@ export async function seed() {
 
     console.log("Database fully seeded with purchases");
 
-    console.log("Database seeded successfully");
+    // Get user IDs for historical data
+    const admin = await storage.getUserByEmail("admin@pizzatruck.com");
+    const cashier = await storage.getUserByEmail("cashier@pizzatruck.com");
+
+    if (!admin || !cashier) {
+      throw new Error("Required users not found for seeding test data");
+    }
+
+    // Get all sellable item IDs
+    const allSellableItems = [
+      "Margherita Pizza",
+      "Pepperoni Pizza",
+      "Hawaiian Pizza",
+      "Veggie Pizza",
+      "Meat Lovers Pizza",
+      "Cheese Pizza",
+      "Coca-Cola",
+      "Pepsi",
+      "Sprite",
+      "Fanta",
+      "7Up",
+    ];
+    const sellableItemIds: string[] = [];
+    for (const itemName of allSellableItems) {
+      const id = itemIds[itemName] || otherItemIds[itemName];
+      if (id) sellableItemIds.push(id);
+    }
+
+    // Get raw material IDs for inventory snapshots
+    const rawMaterialNames = [
+      "Pizza Base",
+      "Pepperoni",
+      "Mozzarella Cheese",
+      "Tomato Sauce",
+      "Pineapple",
+      "Mushrooms",
+    ];
+    const rawMaterialIds: string[] = [];
+    for (const name of rawMaterialNames) {
+      if (itemIds[name]) rawMaterialIds.push(itemIds[name]);
+    }
+
+    console.log("Seeding sample orders - one per product...");
+
+    // Clear existing sales, sale items, and sessions first
+    console.log("Clearing existing orders and sessions...");
+    db.delete(saleItems).run();
+    db.delete(sales).run();
+    db.delete(cashSessions).run();
+    db.delete(sessionInventorySnapshots).run();
+    // Note: We keep stock movements and other data, only clearing sales/sessions
+
+    // Create one active session for testing
+    const activeSessionId = randomUUID();
+    const sessionTime = new Date();
+    sessionTime.setHours(8, 0, 0, 0);
+
+    db.insert(cashSessions)
+      .values({
+        id: activeSessionId,
+        openedAt: sessionTime,
+        openedBy: cashier.id,
+        openingFloat: 100,
+        notes: "Active test session",
+      })
+      .run();
+
+    // Create opening inventory snapshot for the session
+    const openingInventory = rawMaterialIds.map((itemId) => ({
+      sessionId: activeSessionId,
+      itemId,
+      quantity: 50,
+      type: "OPENING" as const,
+      createdAt: sessionTime,
+    }));
+
+    if (openingInventory.length > 0) {
+      db.insert(sessionInventorySnapshots)
+        .values(openingInventory)
+        .run();
+    }
+
+    // Payment types and statuses to cycle through
+    const paymentTypes: ("CASH" | "CARD" | "OTHER")[] = ["CASH", "CARD", "OTHER"];
+    const saleItemStatuses: ("PENDING" | "RECEIVED" | "PREPPING" | "DONE")[] = [
+      "PENDING",
+      "RECEIVED",
+      "PREPPING",
+      "DONE",
+    ];
+
+    // Create one order per product with different variables
+    let paymentTypeIndex = 0;
+    let statusIndex = 0;
+    let useSession = true; // Alternate between session and no session
+
+    for (let i = 0; i < sellableItemIds.length; i++) {
+      const itemId = sellableItemIds[i];
+      const item = await storage.getItem(itemId);
+      if (!item || !item.price) continue;
+
+      const saleTime = new Date();
+      saleTime.setMinutes(saleTime.getMinutes() - (sellableItemIds.length - i));
+
+      const paymentType = paymentTypes[paymentTypeIndex % paymentTypes.length];
+      const status = saleItemStatuses[statusIndex % saleItemStatuses.length];
+      const sessionIdForSale = useSession ? activeSessionId : undefined;
+
+      // Calculate totals
+      const qty = 1;
+      const unitPrice = item.price;
+      const lineTotal = unitPrice * qty;
+      const cogs = lineTotal * 0.4; // 40% COGS
+
+      // Create the sale
+      const saleId = randomUUID();
+      db.insert(sales)
+        .values({
+          id: saleId,
+          sessionId: sessionIdForSale || null,
+          userId: cashier.id,
+          total: lineTotal,
+          cogs: cogs,
+          paymentType: paymentType,
+          createdAt: saleTime,
+        })
+        .run();
+
+      // Create the sale item with the specific status
+      db.insert(saleItems)
+        .values({
+          id: randomUUID(),
+          saleId: saleId,
+          itemId: itemId,
+          qty: qty,
+          unitPrice: unitPrice,
+          lineTotal: lineTotal,
+          status: status,
+        })
+        .run();
+
+      // Cycle through variables
+      paymentTypeIndex++;
+      statusIndex++;
+      useSession = !useSession;
+    }
+
+    console.log("✅ Database seeded successfully with sample orders");
   } catch (error) {
-    console.error("Seed process failed:", error);
-    process.exit(1);
+    console.error("❌ Seed process failed:", error);
+    if (error instanceof Error) {
+      console.error("Error details:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+    throw error; // Re-throw instead of process.exit so caller can handle it
   }
 }
 
@@ -261,5 +518,3 @@ export async function seed() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   seed();
 }
-
-// Create more suppliers

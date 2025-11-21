@@ -42,7 +42,14 @@ function App() {
 
   const login = (user: User) => {
     queryClient.setQueryData(["user"], user);
-    setLocation("/dashboard");
+    // Role-based redirect
+    if (user.role === 'CASHIER') {
+      setLocation('/sessions');
+    } else if (user.role === 'KITCHEN') {
+      setLocation('/kitchen');
+    } else {
+      setLocation('/dashboard');
+    }
   };
 
   const logout = () => {

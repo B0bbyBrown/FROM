@@ -228,8 +228,12 @@ export default function Reports() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div>
               <Label>Date Range</Label>
-              <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger data-testid="date-range-select">
+              <Select
+                value={dateRange}
+                onValueChange={setDateRange}
+                data-testid="date-range-select"
+              >
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -393,7 +397,7 @@ export default function Reports() {
                     >
                       <TableCell>
                         <div className="flex items-center space-x-3">
-                          {product.sku.includes("PIZ") ? (
+                          {product.sku && product.sku.includes("PIZ") ? (
                             <PizzaIcon className="h-4 w-4 text-primary" />
                           ) : (
                             <PillBottle className="h-4 w-4 text-blue-600" />
@@ -401,7 +405,7 @@ export default function Reports() {
                           <div>
                             <p className="font-medium">{product.productName}</p>
                             <p className="text-xs text-muted-foreground">
-                              {product.sku}
+                              {product.sku || "N/A"}
                             </p>
                           </div>
                         </div>

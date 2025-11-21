@@ -999,7 +999,7 @@ export class SqliteStorage implements IStorage {
       .select({
         type: sql<string>`'sale'`,
         id: sales.id,
-        description: sql<string>`'Sale of $' || ${sales.total}`,
+        description: sql<string>`'Sale'`,
         amount: sales.total,
         createdAt: sales.createdAt,
       })

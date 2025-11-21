@@ -1,19 +1,27 @@
 export function formatCurrency(amount: number | string): string {
   const value = typeof amount === "string" ? parseFloat(amount) : amount;
-  return new Intl.NumberFormat("en-ZA", {
+  if (isNaN(value)) return "R0.00";
+  
+  // Force ZAR currency format explicitly
+  const formatter = new Intl.NumberFormat("en-ZA", {
     style: "currency",
     currency: "ZAR",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value);
+    currencyDisplay: "symbol",
+  });
+  
+  return formatter.format(value);
 }
 
-export function formatDate(date: string | Date): string {
-  return new Intl.DateTimeFormat("en-ZA", {
+export const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    return "Invalid Date";
+  }
+  return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
-    month: "long",
+    month: "short",
     day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(date));
-}
+  }).format(date);
+};

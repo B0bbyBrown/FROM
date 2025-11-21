@@ -5,27 +5,21 @@
 The Wheely Good Pizza Tracker uses SQLite for data storage. This choice provides:
 
 - Zero-configuration setup
-- Single file storage
+- Single file storage (`pizza-truck.db` in the project root)
 - No external dependencies
 - Perfect for single-location deployments
 
-## Database File
+## Schema Management
 
-The database is stored in `pizza-truck.db` in the project root. This file:
-
-- Is created automatically on first run
-- Contains all tables and data
-- Can be backed up by simply copying the file
-- Can be deleted to start fresh
+The database schema is managed by Drizzle ORM and is defined in `shared/schema.ts`. This file is the single source of truth for the database structure. The `CREATE TABLE` statements below are for illustrative purposes and are derived from the Drizzle schema.
 
 ## Schema
 
 ### Core Tables
 
-#### users
-
-- Stores admin and cashier accounts
-- Only admin user is seeded automatically
+#### `users`
+- Stores user accounts with roles for authorization.
+- The database is seeded with `ADMIN`, `CASHIER`, and `KITCHEN` users by default.
 
 ```sql
 CREATE TABLE users (
@@ -33,40 +27,25 @@ CREATE TABLE users (
   email TEXT NOT NULL UNIQUE,
   password TEXT NOT NULL,
   name TEXT NOT NULL,
-  role TEXT DEFAULT 'CASHIER' NOT NULL,
+  role TEXT CHECK(role IN ('ADMIN', 'CASHIER', 'KITCHEN')) NOT NULL DEFAULT 'CASHIER',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
 ```
 
-#### ingredients
-
-- Stores ingredient definitions
-- Links to inventory tracking
+#### `items`
+- A unified table for all inventory items, including raw ingredients, manufactured sub-assemblies, and sellable products.
+- The `type` column distinguishes between them.
 
 ```sql
-CREATE TABLE ingredients (
+CREATE TABLE items (
   id TEXT PRIMARY KEY,
   name TEXT UNIQUE NOT NULL,
+  sku TEXT UNIQUE,
+  type TEXT CHECK(type IN ('RAW', 'MANUFACTURED', 'SELLABLE')) NOT NULL,
   unit TEXT NOT NULL,
+  price REAL,
   low_stock_level REAL,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-```
-
-#### products
-
-- Stores product definitions
-- Links to recipes
-
-```sql
-CREATE TABLE products (
-  id TEXT PRIMARY KEY,
-  name TEXT UNIQUE NOT NULL,
-  sku TEXT UNIQUE NOT NULL,
-  price REAL NOT NULL,
-  active INTEGER DEFAULT 1 NOT NULL,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
@@ -74,16 +53,15 @@ CREATE TABLE products (
 
 ### Inventory Management
 
-#### inventory_lots
-
-- Tracks ingredient stock using FIFO
-- Created by purchases
-- Consumed by sales
+#### `inventory_lots`
+- Tracks distinct batches of items for FIFO (First-In, First-Out) costing and consumption.
+- New lots are created by purchases.
+- Lots are consumed by sales.
 
 ```sql
 CREATE TABLE inventory_lots (
   id TEXT PRIMARY KEY,
-  ingredient_id TEXT NOT NULL,
+  item_id TEXT NOT NULL,
   quantity REAL NOT NULL,
   unit_cost REAL NOT NULL,
   purchased_at INTEGER NOT NULL,
@@ -92,15 +70,14 @@ CREATE TABLE inventory_lots (
 );
 ```
 
-#### stock_movements
-
-- Audit trail for inventory changes
+#### `stock_movements`
+- Provides a full audit trail for every change to inventory.
 
 ```sql
 CREATE TABLE stock_movements (
   id TEXT PRIMARY KEY,
-  kind TEXT NOT NULL,
-  ingredient_id TEXT NOT NULL,
+  kind TEXT CHECK(kind IN ('PURCHASE', 'SALE_CONSUME', 'ADJUSTMENT', 'WASTAGE', 'SESSION_OUT', 'SESSION_IN')) NOT NULL,
+  item_id TEXT NOT NULL,
   quantity REAL NOT NULL,
   reference TEXT,
   note TEXT,
@@ -110,10 +87,8 @@ CREATE TABLE stock_movements (
 
 ### Sales & Sessions
 
-#### cash_sessions
-
-- Tracks business operating sessions
-- Links sales to sessions
+#### `cash_sessions`
+- Tracks business operating periods (e.g., a day's shift).
 
 ```sql
 CREATE TABLE cash_sessions (
@@ -128,24 +103,9 @@ CREATE TABLE cash_sessions (
 );
 ```
 
-#### session_inventory_snapshots
-
-- Records inventory levels at session start/end
-
-```sql
-CREATE TABLE session_inventory_snapshots (
-  id TEXT PRIMARY KEY,
-  session_id TEXT NOT NULL,
-  ingredient_id TEXT NOT NULL,
-  quantity REAL NOT NULL,
-  type TEXT NOT NULL,
-  created_at INTEGER NOT NULL
-);
-```
-
-#### sales
-
-- Records sales transactions
+#### `sales` & `sale_items`
+- `sales` records the overall transaction details.
+- `sale_items` records the individual line items within that sale.
 
 ```sql
 CREATE TABLE sales (
@@ -154,14 +114,25 @@ CREATE TABLE sales (
   user_id TEXT NOT NULL,
   total REAL NOT NULL,
   cogs REAL NOT NULL,
-  payment_type TEXT NOT NULL,
+  payment_type TEXT CHECK(payment_type IN ('CASH', 'CARD', 'OTHER')) NOT NULL,
   created_at INTEGER NOT NULL
+);
+
+CREATE TABLE sale_items (
+  id TEXT PRIMARY KEY,
+  sale_id TEXT NOT NULL,
+  item_id TEXT NOT NULL,
+  qty INTEGER NOT NULL,
+  unit_price REAL NOT NULL,
+  line_total REAL NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING'
 );
 ```
 
 ### Supporting Tables
 
-#### suppliers
+#### `suppliers` & `purchases` & `purchase_items`
+- These tables track the procurement of new inventory from suppliers.
 
 ```sql
 CREATE TABLE suppliers (
@@ -172,81 +143,66 @@ CREATE TABLE suppliers (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
-```
 
-#### purchases
-
-```sql
 CREATE TABLE purchases (
   id TEXT PRIMARY KEY,
   supplier_id TEXT,
   notes TEXT,
   created_at INTEGER NOT NULL
 );
+
+CREATE TABLE purchase_items (
+  id TEXT PRIMARY KEY,
+  purchase_id TEXT NOT NULL,
+  item_id TEXT NOT NULL,
+  quantity REAL NOT NULL,
+  total_cost REAL NOT NULL
+);
 ```
 
-#### recipe_items
+#### `recipe_items`
+- Defines the Bill of Materials (BOM) for `MANUFACTURED` or `SELLABLE` items.
 
 ```sql
 CREATE TABLE recipe_items (
   id TEXT PRIMARY KEY,
-  product_id TEXT NOT NULL,
-  ingredient_id TEXT NOT NULL,
+  parent_item_id TEXT NOT NULL,
+  child_item_id TEXT NOT NULL,
   quantity REAL NOT NULL
 );
 ```
 
-#### expenses
+#### `expenses`
+- Tracks miscellaneous business expenses.
 
 ```sql
 CREATE TABLE expenses (
   id TEXT PRIMARY KEY,
   label TEXT NOT NULL,
   amount REAL NOT NULL,
-  paid_via TEXT NOT NULL,
+  paid_via TEXT CHECK(paid_via IN ('CASH', 'CARD', 'OTHER')) NOT NULL,
   created_at INTEGER NOT NULL
 );
 ```
 
 ## Data Flow
 
-1. **Inventory Management**:
+1.  **Inventory Management**:
+    -   Purchases of `RAW` items create new `inventory_lots`.
+    -   Sales of `SELLABLE` items look up the `recipe_items` to find the required child items, then consume the oldest `inventory_lots` for those items (FIFO).
+    -   `stock_movements` track all these changes.
 
-   - Purchases create inventory lots
-   - Sales consume lots using FIFO
-   - Stock movements track all changes
-
-2. **Sales Process**:
-
-   - Cash session must be open
-   - Sale records created
-   - Inventory consumed
-   - COGS calculated using FIFO
-
-3. **Session Management**:
-   - Opening records cash float and inventory
-   - Sales linked to session
-   - Closing records final cash and inventory
-   - Variance calculated automatically
+2.  **Session Management**:
+    -   Opening a session can trigger `SESSION_OUT` stock movements to track inventory moved to a mobile location.
+    -   Closing a session can trigger `SESSION_IN` movements to return unused stock.
 
 ## Utilities
 
 ### Reset Database
-
-To start fresh:
-
-1. Stop the server
-2. Delete `pizza-truck.db`
-3. Run `npm run dev:reset`
+To start fresh with a fully seeded database:
+1. Stop the server.
+2. Delete `pizza-truck.db` from the project root.
+3. Run `npm run dev:reset`.
 
 ### Backup Database
-
-Simply copy `pizza-truck.db` to another location.
-
-## Development Notes
-
-- All timestamps are stored as Unix timestamps (seconds since epoch)
-- All IDs are UUIDs
-- Foreign keys are enforced
-- Decimal values use REAL type for better precision
-- Enums are enforced via CHECK constraints
+Simply make a copy of the `pizza-truck.db` file.

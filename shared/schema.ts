@@ -18,7 +18,7 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
-  role: text("role", { enum: ["ADMIN", "CASHIER", "KITCHEN"] })
+  role: text("role", { enum: ["ADMIN", "CASHIER", "KITCHEN", "DEV"] })
     .default("CASHIER")
     .notNull(),
   createdAt: integer("created_at", { mode: "timestamp" })

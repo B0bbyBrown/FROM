@@ -265,6 +265,7 @@ export default function Help() {
                     <AccordionItem
                       key={task.id}
                       value={task.id}
+                      data-testid={`task-accordion-${task.id}`}
                       className="border-b last:border-b-0"
                     >
                       <AccordionTrigger className="flex items-center">
