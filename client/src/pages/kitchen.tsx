@@ -98,14 +98,31 @@ const OrderCard = ({ order, mutation }) => {
     }
   };
 
+  // Safety check: handle empty items array
+  if (!order.items || order.items.length === 0) {
+    return (
+      <Card className="flex flex-col h-full border-gray-300">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">
+            Order #{order.sale.id.slice(-6).toUpperCase()}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No items in this order</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const allItemsDone = order.items.every((item) => item.status === "DONE");
+  const firstItemStatus = order.items[0].status;
 
   return (
     <Card
       className={`flex flex-col h-full ${
         allItemsDone
           ? "border-green-500"
-          : statusBorderColors[order.items[0].status]
+          : statusBorderColors[firstItemStatus]
       }`}
     >
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">

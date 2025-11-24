@@ -1,5 +1,5 @@
 import Layout from "@/components/Layout";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,18 +30,25 @@ export default function Users() {
   const [role, setRole] = useState("CASHIER");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
     queryFn: getUsers,
   });
 
-  const { toast } = useToast();
-
   const createMutation = useMutation({
     mutationFn: (data) => createUser(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["/api/users"]);
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       toast({ title: "Success", description: "User created" });
+      // Reset form
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setName("");
+      setRole("CASHIER");
     },
     onError: () =>
       toast({

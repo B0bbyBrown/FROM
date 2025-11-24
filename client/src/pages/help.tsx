@@ -1,6 +1,5 @@
 // Import necessary components and hooks
-import { useContext } from "react";
-import { AuthContext } from "../contexts/AuthContext";
+import { useAuth } from "@/hooks/use-auth";
 import { Input } from "../components/ui/input";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -204,7 +203,7 @@ const roleGroups = {
 };
 
 export default function Help() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [, setLocation] = useLocation(); // wouter's navigation
 

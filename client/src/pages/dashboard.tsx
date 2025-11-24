@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
@@ -55,6 +56,14 @@ const AdminDashboard = () => {
     ["/api/reports/activity"],
     () => getRecentActivity(5)
   );
+
+  // Filter state for recent activity
+  const [activityFilter, setActivityFilter] = useState<"all" | "sales">("all");
+  
+  // Filter activity based on selection
+  const filteredActivity = activityFilter === "sales" 
+    ? recentActivity.filter((activity: any) => activity.type === "sale")
+    : recentActivity;
 
   // Compute yesterday range for comparisons
   const today = new Date();
@@ -465,10 +474,20 @@ const AdminDashboard = () => {
           <div className="flex items-center justify-between">
             <CardTitle>Recent Activity</CardTitle>
             <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm">
+              <Button 
+                variant={activityFilter === "sales" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setActivityFilter("sales")}
+                data-testid="filter-sales-button"
+              >
                 Sales
               </Button>
-              <Button variant="secondary" size="sm">
+              <Button 
+                variant={activityFilter === "all" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setActivityFilter("all")}
+                data-testid="filter-all-activity-button"
+              >
                 All Activity
               </Button>
             </div>
@@ -480,12 +499,12 @@ const AdminDashboard = () => {
               <div className="text-center py-8 text-muted-foreground">
                 Loading...
               </div>
-            ) : recentActivity.length === 0 ? (
+            ) : filteredActivity.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No recent activity
+                No {activityFilter === "sales" ? "sales" : "recent activity"}
               </div>
             ) : (
-              recentActivity.map((activity: any, index: number) => (
+              filteredActivity.map((activity: any, index: number) => (
                 <div
                   key={activity.id || index}
                   className="flex items-center justify-between p-4 hover:bg-muted/50 rounded-lg transition-colors"
@@ -530,7 +549,7 @@ const AdminDashboard = () => {
               ))
             )}
           </div>
-          {recentActivity.length > 0 && (
+          {filteredActivity.length > 0 && (
             <div className="mt-6 text-center">
               <Link href="/reports">
                 <Button variant="ghost" data-testid="view-full-activity">

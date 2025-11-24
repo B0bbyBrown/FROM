@@ -91,11 +91,6 @@ export default function Reports() {
 
   const { from, to } = getDateRange();
 
-  const { data: overview, isLoading: overviewLoading } = useQuery({
-    queryKey: ["/api/reports/overview", dateRange, fromDate, toDate],
-    queryFn: () => getOverview(),
-  });
-
   const { data: topProducts = [], isLoading: productsLoading } = useQuery({
     queryKey: [
       "/api/reports/top-products",
@@ -153,19 +148,29 @@ export default function Reports() {
     }
   };
 
-  // Calculate period metrics
+  // Calculate period metrics from sales data
   const periodRevenue = sales.reduce(
-    (sum: number, sale: any) => sum + parseFloat(sale.total),
+    (sum: number, sale: any) => sum + parseFloat(sale.total || "0"),
     0
   );
   const periodCogs = sales.reduce(
-    (sum: number, sale: any) => sum + parseFloat(sale.cogs),
+    (sum: number, sale: any) => sum + parseFloat(sale.cogs || "0"),
     0
   );
   const periodGrossMargin =
     periodRevenue > 0
       ? ((periodRevenue - periodCogs) / periodRevenue) * 100
       : 0;
+  const periodOrderCount = sales.length;
+
+  // Create overview object from calculated metrics
+  const overview = {
+    revenue: periodRevenue.toString(),
+    cogs: periodCogs.toString(),
+    grossMargin: periodGrossMargin.toString(),
+    orderCount: periodOrderCount,
+  };
+  const overviewLoading = false; // Calculated from sales, no loading needed
 
   // Ingredient usage analysis
   const getIngredientUsage = () => {

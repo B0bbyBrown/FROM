@@ -29,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/format";
 import { NewItem } from "@shared/schema";
 
 export default function RawMaterials() {
@@ -102,7 +103,7 @@ export default function RawMaterials() {
               </TableCell>
               <TableCell>{item.unit}</TableCell>
               <TableCell>
-                {item.price ? `$${item.price.toFixed(2)}` : "-"}
+                {item.price ? formatCurrency(item.price) : "-"}
               </TableCell>
               <TableCell>{item.lowStockLevel || "-"}</TableCell>
             </TableRow>

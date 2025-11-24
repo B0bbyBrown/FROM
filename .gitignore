@@ -133,3 +133,9 @@ drizzle/
 *.db
 *.db-journal
 dev.log
+
+# Cypress
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+cypress/logs/

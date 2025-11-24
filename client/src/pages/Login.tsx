@@ -1,13 +1,13 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { login as apiLogin } from "@/lib/api"; // Assume this is added as POST /api/auth/login
+import { login as apiLogin } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { AuthContext } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { getActiveCashSession } from "@/lib/api";
 
@@ -17,7 +17,7 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { login } = useContext(AuthContext);
+  const { login } = useAuth();
 
   const loginMutation = useMutation({
     mutationFn: (data: { email: string; password: string }) => apiLogin(data),
