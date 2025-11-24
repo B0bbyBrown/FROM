@@ -25,4 +25,33 @@ describe('Login Page', () => {
     cy.url().should('not.include', '/login');
     cy.contains('Dashboard').should('be.visible');
   });
+
+  it('should redirect authenticated users away from the login page', () => {
+    cy.login('ADMIN');
+    cy.visit('/login');
+    cy.url().should('include', '/dashboard');
+    cy.contains('Dashboard').should('be.visible');
+  });
+
+  it('should handle expired sessions by returning to login', () => {
+    cy.login('ADMIN');
+    cy.visit('/dashboard');
+
+    cy.intercept(
+      {
+        method: 'GET',
+        url: '/api/auth/me',
+      },
+      {
+        statusCode: 401,
+        body: { error: 'Unauthorized' },
+      }
+    ).as('authExpired');
+
+    cy.reload();
+
+    cy.wait('@authExpired');
+    cy.url({ timeout: 10000 }).should('include', '/login');
+    cy.contains('Login').should('be.visible');
+  });
 });

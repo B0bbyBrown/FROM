@@ -117,5 +117,19 @@ describe("Role-Based Access Control", () => {
     cy.url().should("include", "/login");
     cy.contains("Login").should("be.visible");
   });
+
+  it("should redirect CASHIER away from login page", () => {
+    cy.login("CASHIER");
+    cy.visit("/login");
+    cy.url().should("include", "/sessions");
+    cy.contains("Cash Sessions").should("be.visible");
+  });
+
+  it("should redirect KITCHEN staff away from login page", () => {
+    cy.login("KITCHEN");
+    cy.visit("/login");
+    cy.url().should("include", "/kitchen");
+    cy.contains("Kitchen").should("be.visible");
+  });
 });
 

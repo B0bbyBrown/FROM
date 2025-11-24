@@ -88,5 +88,20 @@ describe("Logout Functionality", () => {
     // Verify we're on login page, not dashboard
     cy.get('[data-testid="page-title"]').should("not.exist");
   });
+
+  it("should react to remote logout events", () => {
+    cy.login("ADMIN");
+    cy.visit("/dashboard");
+    cy.contains("Dashboard").should("be.visible");
+
+    cy.request("POST", "/api/auth/logout").its("status").should("eq", 200);
+
+    cy.intercept("GET", "/api/auth/me").as("authCheck");
+    cy.reload();
+    cy.wait("@authCheck");
+
+    cy.url({ timeout: 10000 }).should("include", "/login");
+    cy.contains("Login").should("be.visible");
+  });
 });
 

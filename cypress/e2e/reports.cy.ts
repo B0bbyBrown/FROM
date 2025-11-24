@@ -60,4 +60,30 @@ describe("Reports Page", () => {
   it("should display current stock levels", () => {
     cy.get('[data-testid="inventory-status-card"]').should("be.visible");
   });
+
+  it("should retain custom date selections when switching presets", () => {
+    const fromDate = "2024-01-01";
+    const toDate = "2024-01-05";
+
+    cy.get('[data-testid="date-range-filter-card"]').within(() => {
+      cy.get('button[role="combobox"]').first().click();
+    });
+    cy.contains('[role="option"]', "Custom Range").should("be.visible").click();
+
+    cy.get('[data-testid="from-date-input"]').clear().type(fromDate);
+    cy.get('[data-testid="to-date-input"]').clear().type(toDate);
+
+    cy.get('[data-testid="date-range-filter-card"]').within(() => {
+      cy.get('button[role="combobox"]').first().click();
+    });
+    cy.contains('[role="option"]', "Today").click();
+
+    cy.get('[data-testid="date-range-filter-card"]').within(() => {
+      cy.get('button[role="combobox"]').first().click();
+    });
+    cy.contains('[role="option"]', "Custom Range").click();
+
+    cy.get('[data-testid="from-date-input"]').should("have.value", fromDate);
+    cy.get('[data-testid="to-date-input"]').should("have.value", toDate);
+  });
 });
