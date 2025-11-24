@@ -423,7 +423,7 @@ export default function Sales() {
             {/* Complete Sale Button */}
             <Button
               onClick={handleCompleteSale}
-              disabled={createSaleMutation.isPending || saleItems.length === 0}
+              disabled={createSaleMutation.isPending}
               className="w-full"
               size="lg"
               data-testid="complete-sale-button"

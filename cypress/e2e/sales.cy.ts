@@ -6,16 +6,18 @@ describe("Sales Page", () => {
 
     cy.visit("/sessions");
     cy.contains("Cash Sessions", { timeout: 10000 }).should("be.visible");
-    
+
     // Wait for page to load
     cy.wait(2000);
 
     // Check if there's already an active session
     // Wait for either close button (session exists) or open button (no session) to appear
     cy.get("body").then(($body) => {
-      const hasCloseButton = $body.find('[data-testid="close-session-button"]').length > 0;
-      const hasOpenButton = $body.find('[data-testid="open-session-button"]').length > 0;
-      
+      const hasCloseButton =
+        $body.find('[data-testid="close-session-button"]').length > 0;
+      const hasOpenButton =
+        $body.find('[data-testid="open-session-button"]').length > 0;
+
       if (hasCloseButton) {
         // There's an active session - we can use it, no need to close and reopen
         cy.log("Active session found, using existing session");
@@ -70,18 +72,40 @@ describe("Sales Page", () => {
         cy.get('[role="dialog"]', { timeout: 5000 }).should("not.exist");
       }
     });
-    
+
+    // Ensure body is interactive (no pointer-events: none)
+    cy.get("body").should("not.have.css", "pointer-events", "none");
+
     // Find the add button for any product
     cy.get('[data-testid*="add-product"]').first().should("be.visible");
     cy.get('[data-testid*="add-product"]').first().click();
     cy.get('[data-testid="sale-items-list"]').should("be.visible");
+
     // Select payment method before completing
     cy.get('[data-testid="payment-method-select"]').click();
-    cy.contains("Cash").click();
+    cy.contains('[role="option"]', "Cash").click();
+    // Wait for Select dropdown to close
+    cy.get('[role="listbox"]').should("not.exist");
+
+    // Intercept the API call to wait for it to complete
+    cy.intercept("POST", "/api/sales").as("createSale");
+
     cy.get('[data-testid="complete-sale-button"]').click();
+
+    // Wait for the API call to complete
+    cy.wait("@createSale", { timeout: 10000 });
+
+    // Wait for success toast to appear
+    cy.contains("Sale Completed", { timeout: 10000 }).should("be.visible");
+
+    // Wait for any dialogs/overlays to close and body to be interactive again
+    cy.get("body").should("not.have.css", "pointer-events", "none");
+    cy.get('[role="dialog"]').should("not.exist");
+
     // Wait for sale to complete and table to update
-    cy.wait(2000);
-    cy.get('[data-testid="recent-sales-table"]').should("be.visible");
+    cy.get('[data-testid="recent-sales-table"]', { timeout: 10000 }).should(
+      "be.visible"
+    );
   });
 
   it("should search for products", () => {
@@ -112,7 +136,7 @@ describe("Sales Page", () => {
         cy.get('[role="dialog"]', { timeout: 5000 }).should("not.exist");
       }
     });
-    
+
     // Ensure no items are in the sale
     cy.get('[data-testid="sale-items-list"]').then(($list) => {
       // If there are items, remove them
@@ -123,12 +147,15 @@ describe("Sales Page", () => {
         cy.wait(500); // Wait for items to be removed
       }
     });
-    
-    cy.get('[data-testid="complete-sale-button"]').click({ force: true });
-    
+
+    // Attempt to complete without items
+    cy.get('[data-testid="complete-sale-button"]').click();
+
     // The error is shown in a toast notification
-    // Wait a moment for the toast to appear, then check for the error message
-    cy.wait(500);
-    cy.contains("Please add items to the sale", { timeout: 5000 }).should("be.visible");
+    // Look for the toast by its title "Error" and description
+    cy.contains("Error", { timeout: 5000 }).should("be.visible");
+    cy.contains("Please add items to the sale", { timeout: 5000 }).should(
+      "be.visible"
+    );
   });
 });
