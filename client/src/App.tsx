@@ -36,9 +36,15 @@ function App() {
 
   useEffect(() => {
     if (isAuthenticated && location === "/login") {
-      setLocation("/dashboard");
+      if (user?.role === 'CASHIER') {
+        setLocation('/sessions');
+      } else if (user?.role === 'KITCHEN') {
+        setLocation('/kitchen');
+      } else {
+        setLocation("/dashboard");
+      }
     }
-  }, [isAuthenticated, location, setLocation]);
+  }, [isAuthenticated, location, setLocation, user]);
 
   const login = (user: User) => {
     queryClient.setQueryData(["user"], user);
