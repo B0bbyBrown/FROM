@@ -18,6 +18,9 @@ import Kitchen from "@/pages/kitchen"; // Assuming we'll create this file
 import Help from "./pages/help.tsx";
 import RawMaterials from "@/pages/raw-materials";
 import { User } from "@shared/schema";
+import Products from "@/pages/products";
+import Recipes from "@/pages/recipes";
+import DbVisualizer from "@/pages/db-visualizer";
 
 function App() {
   const queryClient = useQueryClient();
@@ -128,9 +131,24 @@ function App() {
               allowedRoles={["ADMIN", "DEV"]}
             />
             <ProtectedRoute
+              path="/products"
+              component={Products}
+              allowedRoles={["ADMIN", "DEV"]}
+            />
+            <ProtectedRoute
+              path="/recipes"
+              component={Recipes}
+              allowedRoles={["ADMIN", "DEV"]}
+            />
+            <ProtectedRoute
               path="/help"
               component={Help}
               allowedRoles={["ADMIN", "CASHIER", "KITCHEN", "DEV"]}
+            />
+            <ProtectedRoute
+              path="/db-visualizer"
+              component={DbVisualizer}
+              allowedRoles={["DEV"]}
             />
             <Route component={NotFound} />
           </Switch>

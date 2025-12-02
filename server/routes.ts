@@ -16,6 +16,8 @@ import {
 import session from "express-session";
 import bcrypt from "bcryptjs";
 import { Request, Response, NextFunction } from "express";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 declare module "express-session" {
   interface SessionData {
@@ -61,7 +63,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : [];
       if (
         allowed.length > 0 &&
-        !allowed.includes(req.session.role) &&
+        !allowed.includes(req.session.role!) &&
         req.session.role !== "DEV"
       ) {
         return res.status(403).json({ error: "Forbidden" });
@@ -103,7 +105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/auth/me",
     authMiddleware(),
     async (req: Request, res: Response) => {
-      const user = await storage.getUser(req.session.userId);
+      const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(404).json({ error: "User not found" });
       res.json({
         user: {
@@ -148,15 +150,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Items (replaces Ingredients and Products)
   app.get(
     "/api/raw-materials",
-    authMiddleware(["ADMIN", "KITCHEN", "CASHIER"]), // Add KITCHEN role
+    authMiddleware(["ADMIN", "CASHIER", "DEV"]),
     async (req: Request, res: Response) => {
       try {
-        const items = await storage.getItems();
+        const type = req.query.type as "RAW" | "PRODUCT" | undefined;
+        const items = await storage.getItems(type);
         res.json(items);
       } catch (error) {
-        console.error("❌ Failed to fetch items:", error);
-        res.status(500).json({ error: "Failed to fetch items" });
-      }
+        console.error("Failed to fetch items:", error);
+        res.status(500).json({ error: "Failed to fetch items", details: (error as Error).message });
+        }
     }
   );
 
@@ -178,6 +181,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  app.put(
+    "/api/raw-materials/:id",
+    authMiddleware("ADMIN"),
+    async (req: Request, res: Response) => {
+      try {
+        const id = req.params.id;
+        const data = req.body; // Validate with schema if needed
+        const updatedItem = await storage.updateItem(id, data);
+        res.json(updatedItem);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to update item" });
+      }
+    }
+  );
+
+  app.delete(
+    "/api/raw-materials/:id",
+    authMiddleware("ADMIN"),
+    async (req: Request, res: Response) => {
+      try {
+        const id = req.params.id;
+        await storage.deleteItem(id);
+        res.json({ success: true });
+      } catch (error) {
+        res.status(500).json({ error: "Failed to delete item" });
+      }
+    }
+  );
+
   app.get(
     "/api/raw-materials/:id/recipe",
     authMiddleware(["ADMIN", "CASHIER"]),
@@ -190,6 +222,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+
+  app.put(
+    "/api/raw-materials/:id/recipe",
+    authMiddleware("ADMIN"),
+    async (req: Request, res: Response) => {
+      try {
+        const itemId = req.params.id;
+        const recipe = req.body.recipe; // Expect array of { childItemId, quantity }
+        await storage.updateRecipe(itemId, recipe);
+        res.json({ success: true });
+      } catch (error) {
+        res.status(500).json({ error: "Failed to update recipe" });
+      }
+    }
+  );
+
+  // Recipes
+  app.get("/api/recipes", authMiddleware(["ADMIN", "DEV"]), async (req: Request, res: Response) => {
+    try {
+      const recipes = await storage.getRecipes();
+      res.json(recipes);
+    } catch (error) {
+      console.error("Failed to fetch recipes:", error);
+      res.status(500).json({ error: "Failed to fetch recipes" });
+    }
+  });
+
+  app.post("/api/recipes", authMiddleware("ADMIN"), async (req: Request, res: Response) => {
+    try {
+      const data = newItemSchema.parse(req.body); // Assuming newItemSchema is the correct schema for recipes
+      const recipe = await storage.createItem(data); // Assuming createItem is the correct method for recipes
+      res.json(recipe);
+    } catch (error: any) {
+      res.status(400).json({ error: "Invalid recipe data", details: error.errors || error.message });
+    }
+  });
+
+  app.put("/api/recipes/:id", authMiddleware("ADMIN"), async (req: Request, res: Response) => {
+    try {
+      const data = newItemSchema.parse(req.body); // Assuming newItemSchema is the correct schema for recipes
+      const recipe = await storage.updateItem(req.params.id, data); // Assuming updateItem is the correct method for recipes
+      res.json(recipe);
+    } catch (error: any) {
+      res.status(400).json({ error: "Invalid recipe data", details: error.errors || error.message });
+    }
+  });
+
+  app.delete("/api/recipes/:id", authMiddleware("ADMIN"), async (req: Request, res: Response) => {
+    try {
+      await storage.deleteItem(req.params.id); // Assuming deleteItem is the correct method for recipes
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete recipe" });
+    }
+  });
 
   // Suppliers
   app.get("/api/suppliers", async (req: Request, res: Response) => {
@@ -511,6 +598,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch recent activity" });
     }
   });
+
+  app.get(
+    "/api/db-schema",
+    authMiddleware("DEV"),
+    async (req: Request, res: Response) => {
+      try {
+        const tables = db.all(sql`SELECT name FROM sqlite_master WHERE type='table'`) as { name: string }[];
+        const schema: Record<string, { name: string; type: string; notnull: number; pk: number }[]> = {};
+        for (const table of tables) {
+          const columns = db.all(sql`PRAGMA table_info(${sql.raw(table.name)})`) as { name: string; type: string; notnull: number; pk: number }[];
+          schema[table.name] = columns;
+        }
+        res.json(schema);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to fetch schema" });
+      }
+    }
+  );
 
   const httpServer = createServer(app);
   return httpServer;

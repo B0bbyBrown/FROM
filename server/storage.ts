@@ -99,12 +99,12 @@ export interface IStorage {
   ): Promise<CashSession>;
   createInventorySnapshots(
     sessionId: string,
-    snapshots: { ingredientId: string; quantity: string }[],
+    snapshots: { itemId: string; quantity: string }[],
     type: "OPENING" | "CLOSING"
   ): Promise<void>;
   updateStockForSession(
     sessionId: string,
-    snapshots: { ingredientId: string; quantity: string }[],
+    snapshots: { itemId: string; quantity: string }[],
     type: "OPENING" | "CLOSING"
   ): Promise<void>;
 

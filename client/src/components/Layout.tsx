@@ -36,6 +36,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../components/ui/dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -79,6 +80,18 @@ export default function Layout({ children, title, description }: LayoutProps) {
       href: "/raw-materials",
       icon: Package,
       badge: lowStockItems.length > 0 ? lowStockItems.length : undefined,
+      roles: ["ADMIN", "DEV"],
+    },
+    {
+      name: "Recipes",
+      href: "/recipes",
+      icon: Utensils,
+      roles: ["ADMIN", "DEV"],
+    },
+    {
+      name: "Products",
+      href: "/products",
+      icon: Package,
       roles: ["ADMIN", "DEV"],
     },
     {
@@ -196,14 +209,8 @@ export default function Layout({ children, title, description }: LayoutProps) {
               <li key={item.name}>
                 <Link
                   href={item.href}
-                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    item.active
-                      ? "sidebar-active"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                  data-testid={`nav-link-${item.name
-                    .toLowerCase()
-                    .replace(/ /g, "-")}`}
+                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${item.active ? "sidebar-active" : "hover:bg-accent hover:text-accent-foreground"}`}
+                  data-testid={`nav-link-${item.name.toLowerCase().replace(/ /g, "-")}`}
                 >
                   <item.icon className="mr-3 h-4 w-4" />
                   {item.name}

@@ -29,25 +29,45 @@ export const users = sqliteTable("users", {
     .notNull(),
 });
 
-// Unified Items table
 export const items = sqliteTable("items", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").unique().notNull(),
-  sku: text("sku").unique(),
-  type: text("type", {
-    enum: ["RAW", "MANUFACTURED", "SELLABLE"],
-  }).notNull(),
+  name: text("name").notNull(),
+  sku: text("sku"), // No unique
+  type: text("type", { enum: ["RAW", "PRODUCT"] }).notNull(),
   unit: text("unit").notNull(),
-  price: real("price"), // Only for SELLABLE items
-  lowStockLevel: real("low_stock_level"),
+  price: real("price"),
+  low_stock_level: real("low_stock_level"),
+  recipeId: text("recipeId").references(() => recipes.id, { onDelete: "set null" }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .default(sql`(unixepoch())`)
     .notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .default(sql`(unixepoch())`)
     .notNull(),
+});
+
+export const recipes = sqliteTable("recipes", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull().unique(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(
+    sql`(unixepoch())`
+  ),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(
+    sql`(unixepoch())`
+  ),
+});
+
+export const recipeItems = sqliteTable("recipeItems", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  recipeId: text("recipeId").notNull().references(() => recipes.id, { onDelete: "cascade" }),
+  childItemId: text("childItemId").notNull().references(() => items.id),
+  quantity: real("quantity").notNull(),
 });
 
 // Suppliers table
@@ -64,20 +84,6 @@ export const suppliers = sqliteTable("suppliers", {
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .default(sql`(unixepoch())`)
     .notNull(),
-});
-
-// Recipe items (BOM)
-export const recipeItems = sqliteTable("recipe_items", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  parentItemId: text("parent_item_id")
-    .references(() => items.id)
-    .notNull(),
-  childItemId: text("child_item_id")
-    .references(() => items.id)
-    .notNull(),
-  quantity: real("quantity").notNull(),
 });
 
 // Cash sessions table
@@ -394,29 +400,21 @@ export const closeSessionSchema = z.object({
 });
 
 export const newItemSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1),
   sku: z.string().optional(),
-  type: z.enum(["RAW", "MANUFACTURED", "SELLABLE"]),
-  unit: z.string().min(1, "Unit is required"),
-  price: z.preprocess(
-    (val) => (val ? parseFloat(String(val)) : undefined),
-    z.number().min(0).optional()
-  ),
-  lowStockLevel: z.preprocess(
-    (val) => (val ? parseFloat(String(val)) : undefined),
-    z.number().min(0).optional()
-  ),
-  recipe: z
-    .array(
-      z.object({
-        childItemId: z.string().uuid(),
-        quantity: z.preprocess(
-          (val) => (val ? parseFloat(String(val)) : undefined),
-          z.number({ required_error: "Quantity is required" }).min(0)
-        ),
-      })
-    )
-    .optional(),
+  type: z.enum(["RAW", "PRODUCT"]),
+  unit: z.string().min(1),
+  price: z.number().optional(),
+  low_stock_level: z.number().optional(),
+  recipeId: z.string().optional(),
+});
+
+export const newRecipeSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  items: z.array(z.object({
+    childItemId: z.string(),
+    quantity: z.number().positive(),
+  })).min(1, "At least one raw material required"),
 });
 
 // Types
@@ -457,3 +455,6 @@ export type StockAdjustment = z.infer<typeof stockAdjustmentSchema>;
 export type OpenSessionRequest = z.infer<typeof openSessionSchema>;
 export type CloseSessionRequest = z.infer<typeof closeSessionSchema>;
 export type NewItem = z.infer<typeof newItemSchema>;
+export type NewRecipe = z.infer<typeof newRecipeSchema>;
+
+export type ItemType = 'RAW' | 'PRODUCT';

@@ -11,8 +11,6 @@ import {
   type InsertPurchaseItem,
   type InventoryLot,
   type InsertInventoryLot,
-  type RecipeItem,
-  type InsertRecipeItem,
   type CashSession,
   type InsertCashSession,
   type Sale,
@@ -34,13 +32,17 @@ import {
   purchases,
   purchaseItems,
   inventoryLots,
-  recipeItems,
   cashSessions,
   sales,
   saleItems,
   stockMovements,
   expenses,
   sessionInventorySnapshots,
+  type NewRecipe,
+  recipes,
+  recipeItems,
+  RecipeItem,
+  InsertRecipeItem,
 } from "@shared/schema";
 import { IStorage, SafeUser } from "./storage";
 import { db, sqlite } from "./db";
@@ -66,7 +68,21 @@ const todayRange = () => {
   return { start, end };
 };
 
+export interface Recipe {
+  id: string;
+  name: string;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+  items: { childItemId: string; quantity: number }[];
+}
+
 export class SqliteStorage implements IStorage {
+  db;
+
+  constructor() {
+    this.db = db;
+  }
+
   // Users
   async getUser(id: string): Promise<SafeUser | undefined> {
     const [user] = await db
@@ -116,15 +132,20 @@ export class SqliteStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<SafeUser> {
-    const [created] = await db.insert(users).values(user).returning({
-      id: users.id,
-      email: users.email,
-      name: users.name,
-      role: users.role,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-    });
-    return created;
+    console.log("Creating user with values:", user);  // Temp log to confirm execution
+    const [created] = await db
+      .insert(users)
+      .values(user)
+      .returning({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+        created_at: users.createdAt,  // Snake_case to match schema
+        updatedAt: users.updatedAt,  // Snake_case to match schema
+      });
+    console.log("Created user:", created);  // Temp log to see result
+    return created as unknown as SafeUser;
   }
 
   async updateUser(id: string, user: Partial<InsertUser>): Promise<SafeUser> {
@@ -137,15 +158,15 @@ export class SqliteStorage implements IStorage {
         email: users.email,
         name: users.name,
         role: users.role,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
+        created_at: users.createdAt,  // Snake_case to match schema
+        updatedAt: users.updatedAt,  // Snake_case to match schema
       });
-    return updated;
+    return updated as unknown as SafeUser;
   }
 
-  // Items (replaces Ingredients and Products)
-  async getItems(): Promise<Item[]> {
-    return await db.select().from(items).orderBy(asc(items.name));
+  // Items
+  async getItems(type?: "RAW" | "PRODUCT"): Promise<Item[]> {
+    return await this.db.select().from(items).where(type ? eq(items.type, type) : undefined).all();
   }
 
   async getItem(id: string): Promise<Item | undefined> {
@@ -164,55 +185,91 @@ export class SqliteStorage implements IStorage {
     return item;
   }
 
+  async getRecipes(): Promise<Recipe[]> {
+    const recipeData = await this.db.select().from(recipes).orderBy(asc(recipes.name));
+    const allItems = await this.db.select().from(recipeItems);
+
+    return recipeData.map((r: any) => ({
+      ...r,
+      items: allItems.filter((i) => i.recipeId === r.id).map((i) => ({
+        childItemId: i.childItemId,
+        quantity: i.quantity,
+      })),
+    }));
+  }
+
+  async getRecipe(id: string): Promise<Recipe | undefined> {
+    const [recipe] = await this.db.select().from(recipes).where(eq(recipes.id, id));
+    if (recipe) {
+      const items = await this.db.select().from(recipeItems).where(eq(recipeItems.recipeId, id));
+      return {
+        ...recipe,
+        items: items.map((i: any) => ({
+          childItemId: i.childItemId,
+          quantity: i.quantity,
+        })),
+      };
+    }
+    return undefined;
+  }
+
+  async getRecipeByName(name: string): Promise<Recipe | undefined> {
+    const [recipe] = await this.db.select().from(recipes).where(eq(recipes.name, name));
+    if (recipe) {
+      const items = await this.db.select().from(recipeItems).where(eq(recipeItems.recipeId, recipe.id));
+      return {
+        ...recipe,
+        items: items.map((i: any) => ({
+          childItemId: i.childItemId,
+          quantity: i.quantity,
+        })),
+      };
+    }
+    return undefined;
+  }
+
+  async createRecipe(data: NewRecipe): Promise<Recipe> {
+    const [created] = await this.db.insert(recipes).values({ name: data.name }).returning();
+    for (const item of data.items) {
+      await this.db.insert(recipeItems).values({
+        recipeId: created.id,
+        childItemId: item.childItemId,
+        quantity: item.quantity,
+      }).execute();
+    }
+    return await this.getRecipe(created.id) as Recipe;
+  }
+
+  async updateRecipe(id: string, data: NewRecipe): Promise<Recipe> {
+    await this.db.update(recipes).set({ name: data.name }).where(eq(recipes.id, id)).execute();
+    await this.db.delete(recipeItems).where(eq(recipeItems.recipeId, id)).execute();
+    for (const item of data.items) {
+      await this.db.insert(recipeItems).values({
+        recipeId: id,
+        childItemId: item.childItemId,
+        quantity: item.quantity,
+      }).execute();
+    }
+    return await this.getRecipe(id) as Recipe;
+  }
+
   async createItem(item: NewItem): Promise<Item> {
-    const createdItem = sqlite.transaction(() => {
-      const newItem = db
-        .insert(items)
-        .values({
-          name: item.name,
-          sku: item.sku,
-          type: item.type,
-          unit: item.unit,
-          price: item.price ? toNum(item.price) : null,
-          lowStockLevel: item.lowStockLevel ? toNum(item.lowStockLevel) : null,
-        })
-        .returning()
-        .get();
-
-      if (!newItem) {
-        throw new Error("Failed to create item");
-      }
-
-      // Add initial stock for RAW items that are not sellable without a recipe
-      if (item.type === "RAW" || (item.type === "SELLABLE" && !item.recipe)) {
-        db.insert(inventoryLots)
-          .values({
-            itemId: newItem.id,
-            quantity: 100, // Generous starting stock
-            unitCost: 0.5, // Arbitrary cost
-          })
-          .run();
-      }
-
-      if (item.recipe && item.recipe.length > 0) {
-        if (newItem.type === "RAW") {
-          throw new Error("RAW items cannot have a recipe.");
-        }
-        for (const recipeItem of item.recipe) {
-          db.insert(recipeItems)
-            .values({
-              parentItemId: newItem.id,
-              childItemId: recipeItem.childItemId,
-              quantity: toNum(recipeItem.quantity),
-            })
-            .run();
-        }
-      }
-
-      return newItem;
-    })();
-
-    return createdItem;
+    const [created] = await db
+      .insert(items)
+      .values(item)
+      .returning({
+        id: items.id,
+        name: items.name,
+        sku: items.sku,
+        type: items.type,
+        unit: items.unit,
+        price: items.price,
+        low_stock_level: items.low_stock_level,
+        recipeId: items.recipeId,
+        createdAt: items.createdAt,
+        updatedAt: items.updatedAt,
+      });
+    return created as unknown as Item;
   }
 
   async updateItem(id: string, item: Partial<InsertItem>): Promise<Item> {
@@ -221,13 +278,19 @@ export class SqliteStorage implements IStorage {
       .set({
         ...item,
         price: item.price ? toNum(item.price) : undefined,
-        lowStockLevel: item.lowStockLevel
-          ? toNum(item.lowStockLevel)
-          : undefined,
+        low_stock_level: item.low_stock_level ? toNum(item.low_stock_level) : undefined,
       })
       .where(eq(items.id, id))
       .returning();
     return updated;
+  }
+
+  async deleteItem(id: string) {
+    await this.db.transaction(async (trx) => {
+      await trx.delete(recipeItems).where(eq(recipeItems.recipeId, id)).execute(); // Updated to recipe_id
+      // Delete related stock, etc., if needed
+      await trx.delete(items).where(eq(items.id, id)).execute();
+    });
   }
 
   // Suppliers
@@ -248,31 +311,6 @@ export class SqliteStorage implements IStorage {
     return supplier;
   }
 
-  // Recipe Items
-  async getRecipeItems(parentItemId: string): Promise<RecipeItem[]> {
-    return await db
-      .select()
-      .from(recipeItems)
-      .where(eq(recipeItems.parentItemId, parentItemId));
-  }
-
-  async createRecipeItem(recipeItem: InsertRecipeItem): Promise<RecipeItem> {
-    const [created] = await db
-      .insert(recipeItems)
-      .values({
-        ...recipeItem,
-        quantity: toNum(recipeItem.quantity),
-      })
-      .returning();
-    return created;
-  }
-
-  async deleteRecipeItems(parentItemId: string): Promise<void> {
-    if (!parentItemId) return;
-    await db
-      .delete(recipeItems)
-      .where(eq(recipeItems.parentItemId, parentItemId));
-  }
 
   // Inventory Lots
   async getInventoryLots(itemId: string): Promise<InventoryLot[]> {
@@ -339,7 +377,7 @@ export class SqliteStorage implements IStorage {
                 purchaseId: created.id,
                 itemId: item.itemId,
                 quantity,
-                totalCost,
+                totalCost: totalCost,
               })
               .run();
 
@@ -347,14 +385,14 @@ export class SqliteStorage implements IStorage {
               .values({
                 itemId: item.itemId,
                 quantity,
-                unitCost,
+                unitCost: unitCost,
               })
               .run();
 
             db.insert(stockMovements)
               .values({
                 kind: "PURCHASE",
-                itemId: item.itemId,
+                    itemId: item.itemId,
                 quantity,
                 reference: created.id,
               })
@@ -443,7 +481,7 @@ export class SqliteStorage implements IStorage {
         const lots = tx
           .select()
           .from(inventoryLots)
-          .where(eq(inventoryLots.itemId, adjustment.itemId))
+            .where(eq(inventoryLots.itemId, adjustment.itemId))
           .orderBy(asc(inventoryLots.purchasedAt))
           .all();
 
@@ -485,38 +523,36 @@ export class SqliteStorage implements IStorage {
 
   // Sales (transaction with recursive FIFO COGS calculation)
   async createSale(sale: NewSale, userId: string): Promise<Sale> {
-    const createdSale = sqlite.transaction(() => {
+    return sqlite.transaction(async () => {
       let totalRevenue = 0;
       let totalCogs = 0;
-      const saleItemsData = [];
+      const saleItemsData: Omit<InsertSaleItem, "sale_id">[] = [];
       const stockMovementsToCreate: Omit<
         InsertStockMovement,
-        "id" | "createdAt" | "reference"
+        "id" | "created_at" | "reference"
       >[] = [];
 
-      const consumeItemRecursive = (
+      const consumeItemRecursive = async (
         itemId: string,
         quantityToConsume: number
-      ): number => {
+      ): Promise<number> => {
         let calculatedCost = 0;
 
-        const recipe = db
-          .select()
-          .from(recipeItems)
-          .where(eq(recipeItems.parentItemId, itemId))
-          .all();
+        const item = db.select().from(items).where(eq(items.id, itemId)).get();
+        if (!item) throw new Error(`Item not found: ${itemId}`);
 
-        if (recipe.length > 0) {
-          // It's a MANUFACTURED item, recurse through its components
-          for (const component of recipe) {
+        if (item.type === "PRODUCT" && item.recipeId) {
+          const recipe = await this.getRecipe(item.recipeId);
+          if (!recipe) throw new Error(`Recipe not found for item ${itemId}`);
+          for (const component of recipe.items) {
             const requiredChildQty = component.quantity * quantityToConsume;
-            calculatedCost += consumeItemRecursive(
+            calculatedCost += await consumeItemRecursive(
               component.childItemId,
               requiredChildQty
             );
           }
-        } else {
-          // It's a RAW item, consume from inventory lots (base case)
+        } else if (item.type === "RAW") {
+          // Consume from inventory lots (base case)
           const lots = db
             .select()
             .from(inventoryLots)
@@ -554,6 +590,8 @@ export class SqliteStorage implements IStorage {
               quantity: -consumed,
             });
           }
+        } else {
+          throw new Error(`Invalid item type for consumption: ${item.type}`);
         }
         return calculatedCost;
       };
@@ -564,7 +602,7 @@ export class SqliteStorage implements IStorage {
           .from(items)
           .where(eq(items.id, item.itemId))
           .get();
-        if (!product || product.type !== "SELLABLE" || !product.price) {
+        if (!product || product.type !== "PRODUCT" || !product.price) {
           throw new Error(`Item not found or not sellable: ${item.itemId}`);
         }
 
@@ -573,13 +611,15 @@ export class SqliteStorage implements IStorage {
         totalRevenue += lineTotal;
 
         saleItemsData.push({
+          saleId: 'temp',
           itemId: item.itemId,
           qty: item.qty,
-          unitPrice,
-          lineTotal,
+          unitPrice: unitPrice,
+          lineTotal: lineTotal,
+          status: 'PENDING',
         });
 
-        totalCogs += consumeItemRecursive(item.itemId, item.qty);
+        totalCogs += await consumeItemRecursive(item.itemId, item.qty);
       }
 
       const activeSession = db
@@ -588,27 +628,27 @@ export class SqliteStorage implements IStorage {
         .where(isNull(cashSessions.closedAt))
         .get();
 
-      const created = db
+      const [createdSale] = await db
         .insert(sales)
         .values({
           sessionId: activeSession?.id || null,
-          userId,
+          userId: userId,
           total: totalRevenue,
           cogs: totalCogs,
           paymentType: sale.paymentType,
         })
-        .returning()
-        .get();
+        .returning();
 
-      if (!created) {
+      if (!createdSale) {
         throw new Error("Failed to create sale");
       }
 
       for (const itemData of saleItemsData) {
         db.insert(saleItems)
           .values({
-            saleId: created.id,
+
             ...itemData,
+            saleId: createdSale.id,
           })
           .run();
       }
@@ -617,16 +657,18 @@ export class SqliteStorage implements IStorage {
         db.insert(stockMovements)
           .values({
             ...movement,
-            reference: created.id,
+            reference: createdSale.id,
           })
           .run();
       }
 
-      return created;
+      return { ...createdSale, items: saleItemsData };
+
     })();
 
-    return createdSale;
+
   }
+
 
   async getSales(from?: Date, to?: Date): Promise<Sale[]> {
     if (from && to) {
@@ -652,8 +694,7 @@ export class SqliteStorage implements IStorage {
       .where(eq(saleItems.saleId, saleId));
   }
 
-  // Cash Sessions (methods using 'itemId' need to be checked)
-  // I will update openSessionAndMoveStock, createInventorySnapshots, updateStockForSession
+  // Cash Sessions
   async getActiveCashSession(): Promise<CashSession | undefined> {
     const [session] = await db
       .select()
@@ -685,7 +726,7 @@ export class SqliteStorage implements IStorage {
         closedAt: new Date(),
         closingFloat: toNum(closingFloat),
         notes,
-        closedBy,
+        closedBy: closedBy,
       })
       .where(eq(cashSessions.id, sessionId))
       .returning();
@@ -737,7 +778,7 @@ export class SqliteStorage implements IStorage {
     if (snapshots.length === 0) return;
 
     const snapshotData = snapshots.map((s) => ({
-      sessionId,
+      sessionId: sessionId,
       itemId: s.itemId,
       quantity: toNum(s.quantity),
       type,
@@ -837,7 +878,7 @@ export class SqliteStorage implements IStorage {
     });
   }
 
-  // Expenses (no change needed)
+  // Expenses
   async createExpense(expense: InsertExpense): Promise<Expense> {
     const [created] = await db
       .insert(expenses)
@@ -869,11 +910,11 @@ export class SqliteStorage implements IStorage {
         itemName: items.name,
         totalQuantity: sum(inventoryLots.quantity),
         unit: items.unit,
-        lowStockLevel: items.lowStockLevel,
+        lowStockLevel: items.low_stock_level,
       })
       .from(items)
       .leftJoin(inventoryLots, eq(items.id, inventoryLots.itemId))
-      .groupBy(items.id, items.name, items.unit, items.lowStockLevel)
+      .groupBy(items.id, items.name, items.unit, items.low_stock_level)
       .orderBy(asc(items.name));
 
     return result.map((row) => ({
@@ -898,18 +939,18 @@ export class SqliteStorage implements IStorage {
         itemName: items.name,
         totalQuantity: sum(inventoryLots.quantity),
         unit: items.unit,
-        lowStockLevel: items.lowStockLevel,
+        lowStockLevel: items.low_stock_level,
       })
       .from(inventoryLots)
       .innerJoin(items, eq(inventoryLots.itemId, items.id))
-      .where(sql`${items.lowStockLevel} IS NOT NULL`)
+      .where(sql`${items.low_stock_level} IS NOT NULL`)
       .groupBy(
         inventoryLots.itemId,
         items.name,
         items.unit,
-        items.lowStockLevel
+        items.low_stock_level
       )
-      .having(sql`SUM(${inventoryLots.quantity}) < ${items.lowStockLevel}`);
+      .having(sql`SUM(${inventoryLots.quantity}) < ${items.low_stock_level}`);
 
     return result.map((row) => ({
       ...row,
@@ -987,6 +1028,7 @@ export class SqliteStorage implements IStorage {
 
     return result.map((row) => ({
       ...row,
+      sku: row.sku || '',
       totalQty: Number(row.totalQty || 0),
       totalRevenue: toStr(toNum(row.totalRevenue || 0)),
     }));
@@ -1034,13 +1076,21 @@ export class SqliteStorage implements IStorage {
   > {
     const pendingItems = await db
       .select({
-        ...saleItems,
+        id: saleItems.id,
+        saleId: saleItems.saleId,
+        itemId: saleItems.itemId,
+        qty: saleItems.qty,
+        unitPrice: saleItems.unitPrice,
+        lineTotal: saleItems.lineTotal,
+        status: saleItems.status,
         itemName: items.name,
       })
       .from(saleItems)
       .innerJoin(items, eq(saleItems.itemId, items.id))
       .where(ne(saleItems.status, "DONE"));
-    const saleIds = [...new Set(pendingItems.map((i) => i.saleId))];
+
+    const saleIds = Array.from(new Set(pendingItems.map((i) => i.saleId)));
+
     if (saleIds.length === 0) return [];
 
     const pendingSales = await db
@@ -1051,7 +1101,16 @@ export class SqliteStorage implements IStorage {
 
     return pendingSales.map((s) => ({
       sale: s,
-      items: pendingItems.filter((i) => i.saleId === s.id),
+      items: pendingItems.filter((i) => i.saleId === s.id).map((i) => ({
+        id: i.id,
+        saleId: i.saleId,
+        itemId: i.itemId,
+        qty: Number(i.qty),
+        unitPrice: Number(i.unitPrice),
+        lineTotal: Number(i.lineTotal),
+        status: i.status,
+        itemName: i.itemName,
+      })),
     }));
   }
 
@@ -1069,5 +1128,21 @@ export class SqliteStorage implements IStorage {
       throw new Error("Sale item not found");
     }
     return updated;
+  }
+
+  async getRecipeItems(recipeId: string): Promise<RecipeItem[]> {
+    return db.select().from(recipeItems).where(eq(recipeItems.recipeId, recipeId));
+  }
+
+  async createRecipeItem(recipeItem: InsertRecipeItem): Promise<RecipeItem> {
+    const [created] = await db
+      .insert(recipeItems)
+      .values(recipeItem)
+      .returning();
+    return created;
+  }
+
+  async deleteRecipeItems(recipeId: string): Promise<void> {
+    await db.delete(recipeItems).where(eq(recipeItems.recipeId, recipeId));
   }
 }

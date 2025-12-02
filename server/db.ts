@@ -8,8 +8,8 @@ import fs from "fs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Use a separate test database when running E2E tests
 const DB_PATH = process.env.CYPRESS_TEST
-  ? path.join(__dirname, "..", "..", "pizza-truck-test.db")
-  : path.join(__dirname, "..", "..", "pizza-truck.db");
+  ? path.join(__dirname, "..", "..", "from-test.db")
+  : path.join(__dirname, "..", "..", "from.db");
 
 // Reset database if RESET_DB is set
 if (process.env.RESET_DB) {
@@ -45,7 +45,8 @@ if (process.env.RESET_DB === "true") {
       DROP TABLE IF EXISTS sales;
       DROP TABLE IF EXISTS cash_sessions;
       DROP TABLE IF EXISTS stock_movements;
-      DROP TABLE IF EXISTS recipe_items;
+      DROP TABLE IF EXISTS recipeItems;
+      DROP TABLE IF EXISTS recipes;
       DROP TABLE IF EXISTS purchase_items;
       DROP TABLE IF EXISTS purchases;
       DROP TABLE IF EXISTS inventory_lots;
@@ -80,14 +81,29 @@ try {
 
     CREATE TABLE IF NOT EXISTS items (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-      name TEXT UNIQUE NOT NULL,
-      sku TEXT UNIQUE,
-      type TEXT NOT NULL CHECK(type IN ('RAW', 'MANUFACTURED', 'SELLABLE')),
+      name TEXT NOT NULL,
+      sku TEXT,
+      type TEXT NOT NULL CHECK(type IN ('RAW', 'PRODUCT')),
       unit TEXT NOT NULL,
       price REAL,
       low_stock_level REAL,
+      recipeId TEXT REFERENCES recipes(id) ON DELETE SET NULL,
       created_at INTEGER DEFAULT (unixepoch()) NOT NULL,
       updated_at INTEGER DEFAULT (unixepoch()) NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS recipes (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      name TEXT NOT NULL UNIQUE,
+      created_at INTEGER DEFAULT (unixepoch()) NOT NULL,
+      updated_at INTEGER DEFAULT (unixepoch()) NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS recipeItems (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      recipeId TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+      childItemId TEXT NOT NULL REFERENCES items(id),
+      quantity REAL NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS suppliers (
@@ -122,13 +138,6 @@ try {
       purchased_at INTEGER DEFAULT (unixepoch()) NOT NULL,
       created_at INTEGER DEFAULT (unixepoch()) NOT NULL,
       updated_at INTEGER DEFAULT (unixepoch()) NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS recipe_items (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-      parent_item_id TEXT NOT NULL REFERENCES items(id),
-      child_item_id TEXT NOT NULL REFERENCES items(id),
-      quantity REAL NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS cash_sessions (

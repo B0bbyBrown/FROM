@@ -28,6 +28,7 @@ import {
   OpenSessionRequest,
   CloseSessionRequest,
   NewItem,
+  NewRecipe,
 } from "@shared/schema";
 
 // Items
@@ -87,7 +88,7 @@ export const getCurrentUser = async () => {
     const response = await apiRequest("GET", "/api/auth/me");
     return response.user;
   } catch (error) {
-    if (error.status === 401) {
+    if ((error as { status?: number }).status === 401) {
       return null;
     }
     throw error;
@@ -130,6 +131,24 @@ export const getPendingOrders = () => apiRequest("GET", "/api/kitchen/orders");
 export const updateSaleItemStatus = (id: string, status: string) =>
   apiRequest("PATCH", `/api/sale-items/${id}/status`, { status });
 
-export const getRawMaterials = () => apiRequest("GET", "/api/raw-materials");
+export const getRawMaterials = (type?: "RAW" | "MANUFACTURED" | "SELLABLE") => {
+  const url = type ? `/api/raw-materials?type=${type}` : "/api/raw-materials";
+  return apiRequest("GET", url);
+};
 export const createRawMaterial = (data: NewItem) =>
   apiRequest("POST", "/api/raw-materials", data);
+
+export const updateRecipeDetails = (itemId: string, recipe: any) =>
+  apiRequest("PUT", `/api/raw-materials/${itemId}/recipe-details`, { recipe });
+
+export const updateItem = (id: string, data: any) => apiRequest("PUT", `/api/raw-materials/${id}`, data);
+
+export const deleteItem = (id: string) => apiRequest("DELETE", `/api/raw-materials/${id}`);
+
+export const getRecipes = () => apiRequest("GET", "/api/recipes");
+
+export const createRecipe = (data: NewRecipe) => apiRequest("POST", "/api/recipes", data);
+
+export const updateRecipe = (id: string, data: NewRecipe) => apiRequest("PUT", `/api/recipes/${id}`, data);
+
+export const deleteRecipe = (id: string) => apiRequest("DELETE", `/api/recipes/${id}`);
