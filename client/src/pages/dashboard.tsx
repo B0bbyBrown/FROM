@@ -427,7 +427,7 @@ const AdminDashboard = () => {
                           }`}
                         >
                           {parseFloat(item.totalQuantity).toFixed(1)}
-                          {item.unit} remaining
+                          {item.unit} remaining (low at {parseFloat(item.lowStockLevel).toFixed(1)}{item.unit})
                         </p>
                       </div>
                       <div className="text-right">

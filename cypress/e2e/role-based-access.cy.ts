@@ -3,7 +3,7 @@
 describe("Role-Based Access Control", () => {
   it("should redirect ADMIN to dashboard after login", () => {
     cy.visit("/login");
-    cy.get('#email').type('admin@pizzatruck.com');
+    cy.get('#email').type('admin@from.com');
     cy.get('#password').type('password');
     cy.get('button[type="submit"]').click();
     
@@ -14,7 +14,7 @@ describe("Role-Based Access Control", () => {
 
   it("should redirect CASHIER to sessions after login", () => {
     cy.visit("/login");
-    cy.get('#email').type('cashier@pizzatruck.com');
+    cy.get('#email').type('cashier@from.com');
     cy.get('#password').type('password');
     cy.get('button[type="submit"]').click();
     
@@ -25,7 +25,7 @@ describe("Role-Based Access Control", () => {
 
   it("should redirect KITCHEN to kitchen after login", () => {
     cy.visit("/login");
-    cy.get('#email').type('kitchen@pizzatruck.com');
+    cy.get('#email').type('kitchen@from.com');
     cy.get('#password').type('password');
     cy.get('button[type="submit"]').click();
     

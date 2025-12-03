@@ -19,7 +19,7 @@ describe('Login Page', () => {
   });
 
   it('should login successfully with valid credentials and redirect to dashboard', () => {
-    cy.get('#email').type('admin@pizzatruck.com');
+    cy.get('#email').type('admin@from.com');
     cy.get('#password').type('password');
     cy.get('button[type="submit"]').click();
     cy.url().should('not.include', '/login');

@@ -1,3 +1,5 @@
+// cSpell:words randomblob unixepoch
+
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import * as schema from "@shared/schema";
@@ -8,8 +10,8 @@ import fs from "fs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Use a separate test database when running E2E tests
 const DB_PATH = process.env.CYPRESS_TEST
-  ? path.join(__dirname, "..", "..", "from-test.db")
-  : path.join(__dirname, "..", "..", "from.db");
+  ? path.join(__dirname, "..", "from-test.db")
+  : path.join(__dirname, "..", "from.db");
 
 // Reset database if RESET_DB is set
 if (process.env.RESET_DB) {
@@ -70,7 +72,7 @@ try {
   // Create all tables using raw SQL since we can't use migrations
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       email TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
       name TEXT NOT NULL,
@@ -79,35 +81,35 @@ try {
       updated_at INTEGER DEFAULT (unixepoch()) NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS recipes (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
+      name TEXT NOT NULL UNIQUE,
+      created_at INTEGER DEFAULT (unixepoch()) NOT NULL,
+      updated_at INTEGER DEFAULT (unixepoch()) NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS items (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       name TEXT NOT NULL,
       sku TEXT,
       type TEXT NOT NULL CHECK(type IN ('RAW', 'PRODUCT')),
       unit TEXT NOT NULL,
       price REAL,
       low_stock_level REAL,
-      recipeId TEXT REFERENCES recipes(id) ON DELETE SET NULL,
-      created_at INTEGER DEFAULT (unixepoch()) NOT NULL,
-      updated_at INTEGER DEFAULT (unixepoch()) NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS recipes (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-      name TEXT NOT NULL UNIQUE,
+      recipeId TEXT,
       created_at INTEGER DEFAULT (unixepoch()) NOT NULL,
       updated_at INTEGER DEFAULT (unixepoch()) NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS recipeItems (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       recipeId TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
       childItemId TEXT NOT NULL REFERENCES items(id),
       quantity REAL NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS suppliers (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       name TEXT UNIQUE NOT NULL,
       phone TEXT,
       email TEXT,
@@ -116,14 +118,14 @@ try {
     );
 
     CREATE TABLE IF NOT EXISTS purchases (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       supplier_id TEXT REFERENCES suppliers(id),
       notes TEXT,
       created_at INTEGER DEFAULT (unixepoch()) NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS purchase_items (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       purchase_id TEXT NOT NULL REFERENCES purchases(id),
       item_id TEXT NOT NULL REFERENCES items(id),
       quantity REAL NOT NULL,
@@ -131,7 +133,7 @@ try {
     );
 
     CREATE TABLE IF NOT EXISTS inventory_lots (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       item_id TEXT NOT NULL REFERENCES items(id),
       quantity REAL NOT NULL,
       unit_cost REAL NOT NULL,
@@ -141,7 +143,7 @@ try {
     );
 
     CREATE TABLE IF NOT EXISTS cash_sessions (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       opened_at INTEGER DEFAULT (unixepoch()) NOT NULL,
       opened_by TEXT NOT NULL REFERENCES users(id),
       closed_at INTEGER,
@@ -152,7 +154,7 @@ try {
     );
 
     CREATE TABLE IF NOT EXISTS sales (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       session_id TEXT REFERENCES cash_sessions(id),
       user_id TEXT NOT NULL REFERENCES users(id),
       total REAL NOT NULL,
@@ -162,7 +164,7 @@ try {
     );
 
     CREATE TABLE IF NOT EXISTS sale_items (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       sale_id TEXT NOT NULL REFERENCES sales(id),
       item_id TEXT NOT NULL REFERENCES items(id),
       qty INTEGER NOT NULL,
@@ -172,7 +174,7 @@ try {
     );
 
     CREATE TABLE IF NOT EXISTS stock_movements (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       kind TEXT NOT NULL CHECK(kind IN ('PURCHASE', 'SALE_CONSUME', 'ADJUSTMENT', 'WASTAGE', 'SESSION_OUT', 'SESSION_IN')),
       item_id TEXT NOT NULL REFERENCES items(id),
       quantity REAL NOT NULL,
@@ -182,7 +184,7 @@ try {
     );
 
     CREATE TABLE IF NOT EXISTS expenses (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       label TEXT NOT NULL,
       amount REAL NOT NULL,
       paid_via TEXT NOT NULL CHECK(paid_via IN ('CASH', 'CARD', 'OTHER')),
@@ -190,7 +192,7 @@ try {
     );
 
     CREATE TABLE IF NOT EXISTS session_inventory_snapshots (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), /* cspell:disable-line */
       session_id TEXT NOT NULL REFERENCES cash_sessions(id),
       item_id TEXT NOT NULL REFERENCES items(id),
       quantity REAL NOT NULL,
@@ -200,9 +202,19 @@ try {
   `);
 
   console.log("✅ SQLite database tables created successfully");
+  // Type the tables result
+  const tables = sqlite
+    .prepare("SELECT name FROM sqlite_master WHERE type='table';")
+    .all() as { name: string }[];
+  console.log(
+    "Created tables:",
+    tables.map((t: { name: string }) => t.name)
+  );
 } catch (error) {
   console.error("❌ Failed to create database tables:", error);
   throw error;
 }
 
 console.log(`✅ SQLite database ready at: ${DB_PATH}`);
+
+export { sqlite as rawSqlite };

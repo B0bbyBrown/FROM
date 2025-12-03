@@ -94,7 +94,6 @@ export default function Products() {
             <TableHead>SKU</TableHead>
             <TableHead>Unit</TableHead>
             <TableHead>Price</TableHead>
-            <TableHead>Low Stock</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -105,7 +104,6 @@ export default function Products() {
               <TableCell>{item.sku}</TableCell>
               <TableCell>{item.unit}</TableCell>
               <TableCell>{item.price ? formatCurrency(item.price) : "-"}</TableCell>
-              <TableCell>{item.lowStockLevel || "-"}</TableCell>
               <TableCell>
                 <Button variant="outline" onClick={() => {
                   setEditItem(item);

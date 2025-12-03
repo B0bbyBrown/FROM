@@ -43,7 +43,7 @@ export interface IStorage {
   getUsers(): Promise<SafeUser[]>;
 
   // Items (replaces Ingredients and Products)
-  getItems(): Promise<Item[]>;
+  getItems(type?: "RAW" | "PRODUCT"): Promise<Item[]>;
   getItem(id: string): Promise<Item | undefined>;
   getItemByName(name: string): Promise<Item | undefined>;
   getItemBySku(sku: string): Promise<Item | undefined>;

@@ -12,210 +12,155 @@ import { Command as CommandPrimitive } from "cmdk";
 import { CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { newItemSchema } from "@shared/schema";
+import { Controller } from "react-hook-form";
 
-export const ItemForm = ({ items, onSubmit, isPending, fixedType, showRecipeOnly = false, initialValues = null }) => {
-  const [name, setName] = useState("");
-  const [sku, setSku] = useState("");
-  const [type, setType] = useState(fixedType || "RAW");
-  const [unit, setUnit] = useState("");
-  const [price, setPrice] = useState("");
-  const [lowStockLevel, setLowStockLevel] = useState("");
-  const [initialQuantity, setInitialQuantity] = useState("");
-  const [recipe, setRecipe] = useState<{ childItemId: string; quantity: string }[]>([]);
-  const [recipeId, setRecipeId] = useState(initialValues?.recipeId || "");
-
+export const ItemForm = ({ items, onSubmit, isPending, fixedType, showRecipeOnly = false, initialValues = null, recipes = [] }) => {
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (initialValues) {
-      setName(initialValues.name || "");
-      setSku(initialValues.sku || "");
-      setType(initialValues.type || fixedType || "RAW");
-      setUnit(initialValues.unit || "");
-      setPrice(initialValues.price ? initialValues.price.toString() : "");
-      setLowStockLevel(initialValues.lowStockLevel ? initialValues.lowStockLevel.toString() : "");
-      setInitialQuantity(initialValues.initialQuantity ? initialValues.initialQuantity.toString() : "");
-      setRecipe(initialValues.recipe || []);
-    }
-  }, [initialValues]);
+  const form = useForm({
+    resolver: zodResolver(newItemSchema),
+    defaultValues: {
+      name: initialValues?.name || '',
+      sku: initialValues?.sku || '',
+      type: fixedType || initialValues?.type || 'RAW',
+      unit: initialValues?.unit || '',
+      price: initialValues?.price?.toString() || '',
+      lowStockLevel: initialValues?.lowStockLevel?.toString() || '',
+      initialQuantity: initialValues?.initialQuantity?.toString() || '',
+      recipeId: initialValues?.recipeId || '',
+    },
+  });
 
   useEffect(() => {
-    if (type !== "RAW" && recipe.length === 0) {
-      setRecipe([{ childItemId: "", quantity: "" }]);
+    if (fixedType) {
+      form.setValue('type', fixedType);
     }
-  }, [type]);
+  }, [fixedType, form]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (type === "RAW" && (!initialQuantity || parseFloat(initialQuantity) <= 0)) {
-      toast({ title: "Validation Error", description: "Initial Quantity is required for raw materials and must be greater than 0.", variant: "destructive" });
-      return;
-    }
-    
-    const values: NewItem = {
-      name,
-      sku: sku || undefined,
-      type,
-      unit,
-      price: price ? parseFloat(price) : undefined,
-      lowStockLevel: lowStockLevel ? parseFloat(lowStockLevel) : undefined,
-      recipe: type !== "RAW" ? recipe : undefined,
-      recipeId: type === "PRODUCT" ? recipeId : undefined,
+  const handleSubmit = form.handleSubmit((data) => {
+    // Convert strings to numbers where needed
+    const values = {
+      ...data,
+      price: data.price ? parseFloat(data.price) : undefined,
+      lowStockLevel: data.lowStockLevel ? parseFloat(data.lowStockLevel) : undefined,
+      initialQuantity: data.initialQuantity ? parseFloat(data.initialQuantity) : undefined,
     };
-    
-    try {
-      const newItem = await onSubmit(values);
-      if (initialQuantity && parseFloat(initialQuantity) > 0) {
-        await adjustStock({
-          itemId: newItem.id,
-          quantity: parseFloat(initialQuantity),
-          reason: "Initial stock",
-        });
-      }
-    } catch (error) {
-      if (error.message.includes("UNIQUE constraint failed: items.sku")) {
-        toast({ title: "Duplicate SKU", description: "This SKU already exists. Please choose a unique one or leave it blank.", variant: "destructive" });
-      } else {
-        toast({ title: "Failed to create item", description: error.message, variant: "destructive" });
-      }
-    }
-  };
-
-  const handleAddRecipeItem = () => {
-    setRecipe([...recipe, { childItemId: "", quantity: "" }]);
-  };
-
-  const handleRecipeChange = (index, field, value) => {
-    const newRecipe = [...recipe];
-    newRecipe[index][field] = value;
-    setRecipe(newRecipe);
-  };
+    onSubmit(values);
+  });
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {!showRecipeOnly && (
         <>
-          <div className="grid grid-cols-2 gap-4">
+          <div className={`grid ${form.watch('type') === "PRODUCT" ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
             <div>
               <Label htmlFor="name">Name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+              <Input id="name" {...form.register('name')} required />
             </div>
-            <div>
-              <Label htmlFor="unit">Unit</Label>
-              <Select onValueChange={setUnit} value={unit}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ml">ml</SelectItem>
-                  <SelectItem value="L">L</SelectItem>
-                  <SelectItem value="g">g</SelectItem>
-                  <SelectItem value="Kg">Kg</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {form.watch('type') !== "PRODUCT" && (
+              <div>
+                <Label htmlFor="unit">Unit</Label>
+                <Controller
+                  name="unit"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select unit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ml">ml</SelectItem>
+                        <SelectItem value="L">L</SelectItem>
+                        <SelectItem value="g">g</SelectItem>
+                        <SelectItem value="Kg">Kg</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            )}
           </div>
 
-          {(type === "PRODUCT" || type === "RAW") && (
+          {(form.watch('type') === "PRODUCT" || form.watch('type') === "RAW") && (
             <div>
               <Label htmlFor="price">Price</Label>
-              <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} required />
+              <Input id="price" type="number" {...form.register('price')} required />
+            </div>
+          )}
+          {form.watch('type') === "RAW" && (
+            <div>
+              <Label htmlFor="initialQuantity">Initial Quantity</Label>
+              <Input 
+                id="initialQuantity" 
+                type="number" 
+                {...form.register('initialQuantity')} 
+                required
+              />
             </div>
           )}
           <div>
-            <Label htmlFor="initialQuantity">Initial Quantity</Label>
-            <Input 
-              id="initialQuantity" 
-              type="number" 
-              value={initialQuantity} 
-              onChange={(e) => setInitialQuantity(e.target.value)} 
-              required={type === "RAW"}
-            />
-          </div>
-          <div>
             <Label htmlFor="sku">SKU</Label>
-            <Input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} />
+            <Input id="sku" {...form.register('sku')} />
           </div>
-          <div>
-            <Label htmlFor="lowStockLevel">Low Stock Level</Label>
-            <Input id="lowStockLevel" type="number" value={lowStockLevel} onChange={(e) => setLowStockLevel(e.target.value)} />
-          </div>
+          {form.watch('type') !== "PRODUCT" && (
+            <div>
+              <Label htmlFor="lowStockLevel">Low Stock Level</Label>
+              <Input id="lowStockLevel" type="number" {...form.register('lowStockLevel')} />
+            </div>
+          )}
 
           {!fixedType ? (
             <div>
               <Label htmlFor="type">Type</Label>
-              <Select onValueChange={(v) => setType(v)} value={type}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="RAW">Raw Material</SelectItem>
-                  <SelectItem value="PRODUCT">Product</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                name="type"
+                control={form.control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="RAW">Raw Material</SelectItem>
+                      <SelectItem value="PRODUCT">Product</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
           ) : (
             <div>
               <Label>Type</Label>
-              <p>{type}</p>
+              <p>{form.watch('type')}</p>
             </div>
           )}
         </>
       )}
 
-      {type === "PRODUCT" && (
-        <div>
-          <h3 className="font-medium mb-2">Recipe</h3>
-          <p className="text-sm text-muted-foreground mb-2">Add ingredients or sub-assemblies required to manufacture this item.</p>
-          {recipe.map((item, index) => (
-            <div key={index} className="flex gap-2 mb-2 items-center">
-              <Select onValueChange={(v) => handleRecipeChange(index, "childItemId", v)} value={item.childItemId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select item" />
-                </SelectTrigger>
-                <SelectContent>
-                  {items
-                    .filter((i) => i.id !== item.childItemId && (i.type === "RAW" || i.type === "PRODUCT"))
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((i) => (
-                      <SelectItem key={i.id} value={i.id}>
-                        {i.name} ({i.type}, {i.unit})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <Input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => handleRecipeChange(index, "quantity", e.target.value)} className="w-24" />
-              <Button type="button" variant="ghost" size="icon" onClick={() => {
-                const newRecipe = [...recipe];
-                newRecipe.splice(index, 1);
-                setRecipe(newRecipe);
-              }}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <Button type="button" variant="outline" onClick={handleAddRecipeItem}>
-            Add Recipe Item
-          </Button>
-        </div>
-      )}
-
-      {type === "PRODUCT" && (
+      {form.watch('type') === "PRODUCT" && (
         <div>
           <Label htmlFor="recipeId">Select Recipe</Label>
-          <Select onValueChange={setRecipeId} value={recipeId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a recipe" />
-            </SelectTrigger>
-            <SelectContent>
-              {recipes.map((r) => ( // recipes passed as prop
-                <SelectItem key={r.id} value={r.id}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Controller
+            name="recipeId"
+            control={form.control}
+            render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a recipe" />
+                </SelectTrigger>
+                <SelectContent>
+                  {recipes.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
         </div>
       )}
 

@@ -7,10 +7,35 @@ import { getPendingOrders, updateSaleItemStatus } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useState } from "react";
+import type { Sale, SaleItem } from "@shared/schema";
+
+// Define statusColors and statusBorderColors with types
+const statusColors = {
+  PENDING: "bg-yellow-500",
+  PREPPING: "bg-orange-500",
+  DONE: "bg-green-500",
+} as const;
+const statusBorderColors = {
+  PENDING: "border-yellow-500",
+  PREPPING: "border-orange-500",
+  DONE: "border-green-500",
+} as const;
 
 function Kitchen() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [selectedOrder, setSelectedOrder] = useState<{
+    sale: Sale;
+    items: (SaleItem & { itemName: string })[];
+  } | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["/api/kitchen/orders"],
@@ -59,18 +84,67 @@ function Kitchen() {
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.3 }}
               >
-                <OrderCard order={order} mutation={updateMutation} />
+                <OrderCard
+                  order={order}
+                  mutation={updateMutation}
+                  onClick={() => setSelectedOrder(order)}
+                />
               </motion.div>
             ))
           )}
         </AnimatePresence>
       </div>
+      <Dialog
+        open={!!selectedOrder}
+        onOpenChange={() => setSelectedOrder(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Order Details</DialogTitle>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Order #{selectedOrder.sale.id.slice(-6).toUpperCase()}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Date: {formatDate(selectedOrder.sale.createdAt)}
+              </p>
+              <div className="space-y-2">
+                {selectedOrder.items.map(
+                  (item: SaleItem & { itemName: string }) => (
+                    <div
+                      key={item.id}
+                      className="flex justify-between items-center"
+                    >
+                      <p>
+                        {item.qty}x {item.itemName}
+                      </p>
+                      <Badge className={statusColors[item.status]}>
+                        {item.status}
+                      </Badge>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
 
-const OrderCard = ({ order, mutation }) => {
-  const getNextStatus = (current: string) => {
+const OrderCard = ({
+  order,
+  mutation,
+  onClick,
+}: {
+  order: { sale: Sale; items: (SaleItem & { itemName: string })[] };
+  mutation: any;
+  onClick: () => void;
+}) => {
+  const getNextStatus = (current: string): string | null => {
     switch (current) {
       case "PENDING":
         return "PREPPING";
@@ -81,18 +155,7 @@ const OrderCard = ({ order, mutation }) => {
     }
   };
 
-  const statusColors: { [key: string]: string } = {
-    PENDING: "bg-yellow-500",
-    PREPPING: "bg-orange-500",
-    DONE: "bg-green-500",
-  };
-  const statusBorderColors: { [key: string]: string } = {
-    PENDING: "border-yellow-500",
-    PREPPING: "border-orange-500",
-    DONE: "border-green-500",
-  };
-
-  const handleUpdateStatus = (item, nextStatus) => {
+  const handleUpdateStatus = (item: SaleItem, nextStatus: string | null) => {
     if (nextStatus) {
       mutation.mutate({ id: item.id, status: nextStatus });
     }
@@ -108,22 +171,29 @@ const OrderCard = ({ order, mutation }) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No items in this order</p>
+          <p className="text-sm text-muted-foreground">
+            No items in this order
+          </p>
         </CardContent>
       </Card>
     );
   }
 
-  const allItemsDone = order.items.every((item) => item.status === "DONE");
-  const firstItemStatus = order.items[0].status;
+  const allItemsDone = order.items.every(
+    (item: SaleItem) => item.status === "DONE"
+  );
+  const firstItemStatus = order.items[0]?.status || "PENDING";
 
   return (
     <Card
-      className={`flex flex-col h-full ${
+      className={`flex flex-col h-full cursor-pointer ${
         allItemsDone
           ? "border-green-500"
-          : statusBorderColors[firstItemStatus]
+          : statusBorderColors[
+              firstItemStatus as keyof typeof statusBorderColors
+            ]
       }`}
+      onClick={onClick}
     >
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">
@@ -138,14 +208,16 @@ const OrderCard = ({ order, mutation }) => {
       </CardHeader>
       <CardContent className="flex-grow">
         <div className="space-y-2">
-          {order.items.map((item) => (
+          {order.items.map((item: SaleItem & { itemName: string }) => (
             <div key={item.id} className="flex justify-between items-center">
               <div>
                 <p className="font-medium">
                   {item.qty}x {item.itemName || "Unknown Item"}
                 </p>
                 <Badge
-                  className={`text-xs ${statusColors[item.status]}`}
+                  className={`text-xs ${
+                    statusColors[item.status as keyof typeof statusColors]
+                  }`}
                   variant="default"
                 >
                   {item.status}

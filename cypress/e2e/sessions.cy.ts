@@ -1,137 +1,53 @@
-describe("Sessions Page", () => {
+// Define rawItems at top or fetch
+const rawItems = [{ id: '1', name: 'Item1', price: 10 }]; // Mock data; alternatively, intercept API to provide this
+
+describe('Sessions Page', () => {
   beforeEach(() => {
-    cy.login("CASHIER");
-    cy.visit("/sessions");
-    cy.contains("Cash Sessions").should("be.visible");
+    cy.login('CASHIER');
+    cy.intercept('GET', '/api/sessions').as('getSessions');
+    cy.visit('/sessions');
+    cy.wait('@getSessions', { timeout: 10000 });
   });
 
-  it("should display the sessions page with no active session", () => {
-    // Check if there's no active session (seed data has closed sessions)
-    cy.get("body").then(($body) => {
-      if ($body.find('[data-testid="no-active-session"]').length > 0) {
-        cy.get('[data-testid="no-active-session"]').should("be.visible");
-      } else {
-        // If there's an active session, close it first
-        cy.get('[data-testid="close-session-button"]').click();
-        cy.get('[data-testid="close-session-dialog"]').should("be.visible");
-        cy.get('[data-testid="closing-float-input"]').type("100");
-        // Closing dialog uses close-item- prefix, opening uses item- prefix
-        cy.get('input[id^="close-item-"]').then(($inputs) => {
-          if ($inputs.length > 0) {
-            cy.get('input[id^="close-item-"]').each(($input) => {
-              cy.wrap($input).type("10");
-            });
-          }
-        });
-        cy.get('[data-testid="confirm-close-session-button"]').click({
-          force: true,
-        });
-        cy.wait(2000);
-        cy.get('[data-testid="no-active-session"]').should("be.visible");
-      }
-    });
+  it('should display the sessions page with no active session', () => {
+    cy.contains('button', 'Open Session').should('be.visible').click();
+    cy.get('button', { timeout: 10000 }).contains('Close Session').should('not.exist');
   });
 
-  it("should allow opening and closing a session", () => {
-    // Close any active session first
-    cy.get("body").then(($body) => {
-      if ($body.find('[data-testid="close-session-button"]').length > 0) {
-        cy.get('[data-testid="close-session-button"]').click();
-        cy.get('[data-testid="close-session-dialog"]').should("be.visible");
-        cy.get('[data-testid="closing-float-input"]').type("100");
-        // Closing dialog uses close-item- prefix
-        cy.get('input[id^="close-item-"]').then(($inputs) => {
-          if ($inputs.length > 0) {
-            cy.get('input[id^="close-item-"]').each(($input) => {
-              cy.wrap($input).type("10");
-            });
-          }
-        });
-        cy.get('[data-testid="confirm-close-session-button"]').click({
-          force: true,
-        });
-        cy.wait(2000);
-      }
+  it('should allow opening and closing a session', () => {
+    cy.contains('button', 'Open Session').click();
+    cy.get('input[name="openingFloat"]').type('100');
+    rawItems.forEach((item, index) => {
+      cy.get(`input[id="item-${item.id}"]`).type('10'); // Adjust if needed
     });
+    cy.contains('button', 'Confirm').click();
+    cy.contains('Session Opened').should('be.visible');
 
-    // Wait for no active session state
-    cy.get('[data-testid="no-active-session"]', { timeout: 10000 }).should("be.visible");
-    cy.get('[data-testid="open-session-button"]', { timeout: 10000 }).click();
-    cy.get('[data-testid="open-session-dialog"]').should("be.visible");
-    cy.get('[data-testid="opening-float-input"]').type("100");
-    // Opening dialog uses item- prefix (not close-item-)
-    cy.get('input[id^="item-"]').then(($inputs) => {
-      if ($inputs.length > 0) {
-        cy.get('input[id^="item-"]').each(($input) => {
-          cy.wrap($input).type("10");
-        });
-      }
+    // Assume a sale is needed, but for closing
+    cy.contains('button', 'Close Session').click();
+    cy.get('input[name="closingFloat"]').type('150');
+    rawItems.forEach((item, index) => {
+      cy.get(`input[id="close-item-${item.id}"]`).type('5');
     });
-    cy.get('[data-testid="confirm-open-session-button"]').click();
-    cy.wait(2000);
-    cy.get('[data-testid="active-session-info"]').should("be.visible");
-
-    cy.get('[data-testid="close-session-button"]').click();
-    cy.get('[data-testid="close-session-dialog"]').should("be.visible");
-    cy.get('[data-testid="closing-float-input"]').type("600");
-    // Closing dialog uses close-item- prefix
-    cy.get('input[id^="close-item-"]').then(($inputs) => {
-      if ($inputs.length > 0) {
-        cy.get('input[id^="close-item-"]').each(($input) => {
-          cy.wrap($input).type("10");
-        });
-      }
-    });
-    cy.get('[data-testid="confirm-close-session-button"]').click({
-      force: true,
-    });
-    cy.wait(2000);
-    cy.get('[data-testid="no-active-session"]').should("be.visible");
+    cy.contains('button', 'Confirm').click();
+    cy.contains('Session Closed').should('be.visible');
   });
 
-  it("should display session history", () => {
-    cy.get('[data-testid="sessions-table"]').should("be.visible");
+  it('should display session history', () => {
+    cy.get('[data-testid="sessions-table"]', { timeout: 10000 }).should('be.visible');
+    cy.get('[data-testid="sessions-table"] tbody tr').should('have.length.gte', 1);
   });
 
-  it("should display session totals in table", () => {
-    // Verify sessions table displays totals
-    cy.get('[data-testid="sessions-table"]').should("be.visible");
-    // Check if there are any sessions in the table
-    cy.get('[data-testid="sessions-table"]').then(($table) => {
-      if ($table.find('[data-testid*="session-row-"]').length > 0) {
-        // Verify at least one session row exists with data
-        cy.get('[data-testid*="session-row-"]').first().should("be.visible");
-      }
-    });
+  it('should display session totals in table', () => {
+    cy.get('[data-testid="sessions-table"] tbody tr', { timeout: 10000 }).first().click();
+    cy.contains('Total Sales').should('be.visible');
+    cy.contains('Total COGS').should('be.visible');
   });
 
-  it("should show error for invalid opening float", () => {
-    // Close any active session first
-    cy.get("body").then(($body) => {
-      if ($body.find('[data-testid="close-session-button"]').length > 0) {
-        cy.get('[data-testid="close-session-button"]').click();
-        cy.get('[data-testid="close-session-dialog"]').should("be.visible");
-        cy.get('[data-testid="closing-float-input"]').type("100");
-        // Closing dialog uses close-item- prefix
-        cy.get('input[id^="close-item-"]').then(($inputs) => {
-          if ($inputs.length > 0) {
-            cy.get('input[id^="close-item-"]').each(($input) => {
-              cy.wrap($input).type("10");
-            });
-          }
-        });
-        cy.get('[data-testid="confirm-close-session-button"]').click({
-          force: true,
-        });
-        cy.wait(2000);
-      }
-    });
-
-    cy.get('[data-testid="no-active-session"]', { timeout: 10000 }).should("be.visible");
-    cy.get('[data-testid="open-session-button"]', { timeout: 10000 }).click();
-    cy.get('[data-testid="open-session-dialog"]').should("be.visible");
-    cy.get('[data-testid="opening-float-input"]').type("-100");
-    cy.get('[data-testid="confirm-open-session-button"]').click();
-    cy.contains("Float must be positive").should("be.visible");
+  it('should show error for invalid opening float', () => {
+    cy.contains('button', 'Open Session').click();
+    cy.get('input[name="openingFloat"]').type('abc');
+    cy.contains('button', 'Confirm').click();
+    cy.contains('Invalid float amount').should('be.visible');
   });
 });

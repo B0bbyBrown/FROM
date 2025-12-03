@@ -105,16 +105,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/auth/me",
     authMiddleware(),
     async (req: Request, res: Response) => {
-      const user = await storage.getUser(req.session.userId!);
-      if (!user) return res.status(404).json({ error: "User not found" });
-      res.json({
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        },
-      });
+      try {
+        const user = await storage.getUser(req.session.userId!);
+        if (!user) {
+          return res.status(404).json({ error: "User not found" });
+        }
+        res.json({
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          },
+        });
+      } catch (error) {
+        console.error("Error in /api/auth/me:", error);
+        res.status(500).json({ error: "Internal server error", details: (error as Error).message });
+      }
     }
   );
 
@@ -154,6 +161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const type = req.query.type as "RAW" | "PRODUCT" | undefined;
+        console.log("Requested item type:", type); // Debug log
         const items = await storage.getItems(type);
         res.json(items);
       } catch (error) {

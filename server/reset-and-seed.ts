@@ -16,6 +16,12 @@ async function resetAndSeed() {
   // Import db to trigger table creation and reset (db.ts will handle file deletion)
   await import("./db");
   console.log("✅ Database initialized");
+  // Add diagnostic logs
+  const { rawSqlite } = await import("./db");
+  const itemsInfo = rawSqlite.prepare("PRAGMA table_info(items);").all();
+  console.log("Items table columns:", JSON.stringify(itemsInfo, null, 2));
+  const recipeItemsInfo = rawSqlite.prepare("PRAGMA table_info(recipeItems);").all();
+  console.log("RecipeItems table columns:", JSON.stringify(recipeItemsInfo, null, 2));
 
   // Then seed it
   try {

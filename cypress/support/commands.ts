@@ -38,24 +38,35 @@
 
 Cypress.Commands.add('login', (role = 'ADMIN') => {
   const emailMap = {
-    ADMIN: 'admin@pizzatruck.com',
-    CASHIER: 'cashier@pizzatruck.com',
-    KITCHEN: 'kitchen@pizzatruck.com',
+    ADMIN: 'admin@from.com',
+    CASHIER: 'cashier@from.com',
+    KITCHEN: 'kitchen@from.com',
   };
   const email = emailMap[role];
 
   cy.session(email, () => {
-    cy.visit('/login');
-    cy.get('#email').type(email);
-    cy.get('#password').type('password');
-    cy.get('button[type="submit"]').click();
+    cy.visit('/login', { timeout: 10000 });
+    cy.get('#email', { timeout: 10000 }).type(email);
+    cy.get('#password', { timeout: 10000 }).type('password');
+    cy.intercept('POST', '/api/auth/login').as('loginRequest');
+    cy.get('button[type="submit"]', { timeout: 10000 }).click();
+    cy.wait('@loginRequest', { timeout: 20000 }).its('response.statusCode').should('eq', 200);
 
-    if (role === 'CASHIER') {
+    // Wait for redirect and verify based on role
+    cy.url({ timeout: 20000 }).should('not.include', '/login');
+    if (role === 'ADMIN') {
+      cy.url().should('include', '/dashboard');
+    } else if (role === 'CASHIER') {
       cy.url().should('include', '/sessions');
     } else if (role === 'KITCHEN') {
       cy.url().should('include', '/kitchen');
-    } else {
-      cy.url().should('include', '/dashboard');
+    }
+  }, {
+    validate: () => {
+      cy.request('/api/auth/me').then((response) => {
+        expect(response.status).to.eq(200);
+        expect(response.body.user.role).to.eq(role);
+      });
     }
   });
 });

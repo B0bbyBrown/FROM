@@ -1,8 +1,9 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 
-export const ItemTable = ({ items }) => (
+export const ItemTable = ({ items, onEdit, onDelete }) => (
   <Table>
     <TableHeader>
       <TableRow>
@@ -12,6 +13,9 @@ export const ItemTable = ({ items }) => (
         <TableHead>Unit</TableHead>
         <TableHead>Price</TableHead>
         <TableHead>Low Stock</TableHead>
+        <TableHead>Current Quantity</TableHead>
+        <TableHead>Low Stock Level</TableHead>
+        <TableHead>Actions</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -27,6 +31,16 @@ export const ItemTable = ({ items }) => (
             {item.price ? formatCurrency(item.price) : "-"}
           </TableCell>
           <TableCell>{item.lowStockLevel || "-"}</TableCell>
+          <TableCell>{parseFloat(item.totalQuantity).toFixed(1)}{item.unit}</TableCell>
+          <TableCell>{item.lowStockLevel ? `${parseFloat(item.lowStockLevel).toFixed(1)}${item.unit}` : '-'}</TableCell>
+          <TableCell>
+            <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
+              Edit
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => onDelete(item.id)}>
+              Delete
+            </Button>
+          </TableCell>
         </TableRow>
       ))}
     </TableBody>

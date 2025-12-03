@@ -1,67 +1,47 @@
 /// <reference types="cypress" />
+/// <reference path="../support/commands.ts" />
+
+export {};
+
+declare module "cypress" {
+  interface Chainable<Subject> {
+    login(): Chainable<null>;
+  }
+}
 
 describe("Sales Page", () => {
   beforeEach(() => {
     cy.login("CASHIER");
-
-    cy.visit("/sessions");
-    cy.contains("Cash Sessions", { timeout: 10000 }).should("be.visible");
-
-    // Wait for page to load
-    cy.wait(2000);
-
-    // Check if there's already an active session
-    // Wait for either close button (session exists) or open button (no session) to appear
+    cy.intercept("GET", "**/api/raw-materials").as("getProducts");
+    cy.visit("/sales");
+    // Check if no session, open one
     cy.get("body").then(($body) => {
-      const hasCloseButton =
-        $body.find('[data-testid="close-session-button"]').length > 0;
-      const hasOpenButton =
-        $body.find('[data-testid="open-session-button"]').length > 0;
-
-      if (hasCloseButton) {
-        // There's an active session - we can use it, no need to close and reopen
-        cy.log("Active session found, using existing session");
-      } else if (hasOpenButton) {
-        // Open button is visible - click it to open a session
-        cy.log("No active session, opening new session");
-        cy.get('[data-testid="open-session-button"]').click();
-        cy.get('[data-testid="open-session-dialog"]').should("be.visible");
-        cy.get('[data-testid="opening-float-input"]').type("100");
-        cy.get('input[id^="item-"]').then(($inputs) => {
-          if ($inputs.length > 0) {
-            cy.get('input[id^="item-"]').each(($input) => {
-              cy.wrap($input).type("10");
-            });
-          }
-        });
-        cy.get('[data-testid="confirm-open-session-button"]').click();
-        cy.wait(2000);
-      } else {
-        // Neither button found yet - wait for open button to appear
-        cy.log("Waiting for session state to load...");
-        cy.contains("button", "Open Session", { timeout: 20000 }).click();
-        cy.get('[data-testid="open-session-dialog"]').should("be.visible");
-        cy.get('[data-testid="opening-float-input"]').type("100");
-        cy.get('input[id^="item-"]').then(($inputs) => {
-          if ($inputs.length > 0) {
-            cy.get('input[id^="item-"]').each(($input) => {
-              cy.wrap($input).type("10");
-            });
-          }
-        });
-        cy.get('[data-testid="confirm-open-session-button"]').click();
-        cy.wait(2000);
+      if ($body.text().includes("No Active Cash Session")) {
+        cy.contains("button", "Go to Sessions").click();
+        cy.contains("button", "Open Session").click();
+        cy.get('input[name="openingFloat"]').type("100");
+        cy.contains("button", "Confirm").click();
+        cy.contains("Session Opened").should("be.visible");
+        cy.intercept("GET", "**/api/raw-materials").as("getProducts"); // Re-intercept for re-visit
+        cy.visit("/sales");
       }
     });
-
-    // Navigate to sales page
-    cy.visit("/sales");
-    cy.contains("Point of Sale", { timeout: 10000 }).should("be.visible");
+    cy.wait("@getProducts", { timeout: 20000 });
+    cy.get('input[data-testid="product-search-input"]', {
+      timeout: 10000,
+    }).should("exist");
   });
 
   it("should display the sales page and product list", () => {
-    cy.get('[data-testid="products-list"]').should("be.visible");
-    cy.get('[data-testid="complete-sale-button"]').should("be.visible");
+    cy.contains("Margherita Pizza").should("be.visible");
+  });
+
+  it("should allow adding items to cart", () => {
+    cy.get('[data-testid*="add-product"]', { timeout: 10000 }).first().click();
+    cy.get('[data-testid="sale-items-list"]', { timeout: 10000 }).should(
+      "contain.text",
+      "1x"
+    );
   });
 
   it("should allow creating a new sale", () => {
