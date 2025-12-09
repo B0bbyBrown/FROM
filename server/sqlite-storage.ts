@@ -48,6 +48,7 @@ import { IStorage, SafeUser } from "./storage";
 import { db, sqlite } from "./db";
 import { eq, and, desc, asc, sum, sql, isNull, inArray, ne } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 
 // Utility functions for type conversion
 const toNum = (value: string | number | null): number => {
@@ -216,7 +217,14 @@ export class SqliteStorage implements IStorage {
     if (type) {
       query = query.where(eq(items.type, type));
     }
-    return await query.all();
+    return await query.all().map((i) => ({
+      ...i,
+      createdAt: new Date(i.created_at * 1000),
+      updatedAt: new Date(i.updated_at * 1000),
+      bulkUnit: i.bulkUnit,
+      bulkQuantity: i.bulkQuantity,
+      bulkPrice: i.bulkPrice,
+    }));
   }
 
   async getItemById(id: string): Promise<Item | undefined> {
@@ -233,8 +241,18 @@ export class SqliteStorage implements IStorage {
     return item;
   }
 
-  async createItem(item: InsertItem): Promise<Item> {
-    const [created] = await db.insert(items).values(item).returning().all();
+  async createItem(item: NewItem): Promise<Item> {
+    const id = randomUUID();
+    const now = Math.floor(Date.now() / 1000);
+    const [created] = await db.insert(items).values({
+      id,
+      ...item,
+      bulkUnit: item.bulkUnit,
+      bulkQuantity: item.bulkQuantity,
+      bulkPrice: item.bulkPrice,
+      created_at: now,
+      updated_at: now,
+    }).returning().all();
     return created;
   }
 
@@ -249,6 +267,16 @@ export class SqliteStorage implements IStorage {
   }
 
   async deleteItem(id: string): Promise<void> {
+    // Clean up dependent records to satisfy FK constraints before deleting the item.
+    await db.delete(recipeItems).where(eq(recipeItems.childItemId, id)).run();
+    await db.delete(purchaseItems).where(eq(purchaseItems.itemId, id)).run();
+    await db.delete(inventoryLots).where(eq(inventoryLots.itemId, id)).run();
+    await db.delete(stockMovements).where(eq(stockMovements.itemId, id)).run();
+    await db.delete(saleItems).where(eq(saleItems.itemId, id)).run();
+    await db
+      .delete(sessionInventorySnapshots)
+      .where(eq(sessionInventorySnapshots.itemId, id))
+      .run();
     await db.delete(items).where(eq(items.id, id)).run();
   }
 

@@ -41,6 +41,8 @@ import {
   getSales,
   getStockMovements,
   getCurrentStock,
+  getExpenses,
+  getPurchases,
 } from "@/lib/api";
 import { useState } from "react";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -126,6 +128,16 @@ export default function Reports() {
   const { data: currentStock = [] } = useQuery({
     queryKey: ["/api/stock/current"],
     queryFn: () => getCurrentStock(),
+  });
+
+  const { data: expenses = [] } = useQuery({
+    queryKey: ["/api/expenses"],
+    queryFn: getExpenses,
+  });
+
+  const { data: purchases = [] } = useQuery({
+    queryKey: ["/api/purchases"],
+    queryFn: getPurchases,
   });
 
   const formatPercentage = (value: string | number) => {
@@ -598,6 +610,71 @@ export default function Reports() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Expenses and Purchases */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card data-testid="expenses-card">
+          <CardHeader>
+            <CardTitle>Expenses (latest)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {expenses.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No expenses.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Label</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Paid Via</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {expenses.slice(-5).reverse().map((exp: any) => (
+                    <TableRow key={exp.id}>
+                      <TableCell>{exp.label}</TableCell>
+                      <TableCell>{formatCurrency(exp.amount)}</TableCell>
+                      <TableCell>{exp.paid_via || exp.paidVia || "-"}</TableCell>
+                      <TableCell>{formatDate(exp.created_at || exp.createdAt)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card data-testid="purchases-card">
+          <CardHeader>
+            <CardTitle>Recent Purchases</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {purchases.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No purchases.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Supplier</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {purchases.slice(-5).reverse().map((p: any) => (
+                    <TableRow key={p.id}>
+                      <TableCell>{p.supplierName || p.supplier_id || "N/A"}</TableCell>
+                      <TableCell>{p.items ? p.items.length : "-"}</TableCell>
+                      <TableCell>{p.created_at ? formatDate(p.created_at) : "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Sales Trend Chart Placeholder */}
       <Card className="mt-6" data-testid="sales-trend-card">

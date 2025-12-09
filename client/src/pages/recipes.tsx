@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getRecipes, createRecipe, updateRecipe, deleteRecipe, getRawMaterials } from "@/lib/api";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ export default function Recipes() {
   const [editRecipe, setEditRecipe] = useState<Recipe | null>(null);
   const [deleteRecipeId, setDeleteRecipeId] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [recipeItems, setRecipeItems] = useState<{ childItemId: string; quantity: number }[]>([{ childItemId: "", quantity: 0 }]); // Use number for quantity
+  const [recipeItems, setRecipeItems] = useState<{ childItemId: string; quantity: number; unit: string }[]>([{ childItemId: "", quantity: 0, unit: "" }]); // quantity in display unit; unit may differ from raw material base
   const [searchTerm, setSearchTerm] = useState(""); // State for search
 
   const { data: recipes = [], isLoading } = useQuery<Recipe[]>({
@@ -34,6 +34,49 @@ export default function Recipes() {
     queryFn: () => getRawMaterials("RAW"),
   });
 
+  const hasRawMaterials = rawMaterials.length > 0;
+  const rawMaterialMap = new Map(rawMaterials.map((rm) => [rm.id, rm]));
+
+  const allowedUnitsByBase: Record<string, string[]> = {
+    ml: ["ml", "L"],
+    L: ["L", "ml"],
+    g: ["g", "Kg"],
+    Kg: ["Kg", "g"],
+    item: ["item"],
+    bulk: ["bulk"],
+  };
+
+  const getAllowedUnits = (baseUnit: string | undefined) =>
+    (allowedUnitsByBase[baseUnit || ""] || [])
+      .filter(Boolean) as string[];
+
+  const getDisplayQuantity = (baseUnit: string | undefined, baseQty: number) => {
+    if (!baseUnit || !Number.isFinite(baseQty)) return { qty: baseQty, unit: baseUnit };
+    if (baseUnit === "L" && baseQty < 1) return { qty: baseQty * 1000, unit: "ml" };
+    if (baseUnit === "ml" && baseQty >= 1000) return { qty: baseQty / 1000, unit: "L" };
+    if (baseUnit === "Kg" && baseQty < 1) return { qty: baseQty * 1000, unit: "g" };
+    if (baseUnit === "g" && baseQty >= 1000) return { qty: baseQty / 1000, unit: "Kg" };
+    return { qty: baseQty, unit: baseUnit };
+  };
+
+  const toBaseQuantity = (qty: number, fromUnit: string, baseUnit: string) => {
+    if (!qty || !fromUnit || !baseUnit || fromUnit === baseUnit) return qty;
+    if (fromUnit === "L" && baseUnit === "ml") return qty * 1000;
+    if (fromUnit === "ml" && baseUnit === "L") return qty / 1000;
+    if (fromUnit === "Kg" && baseUnit === "g") return qty * 1000;
+    if (fromUnit === "g" && baseUnit === "Kg") return qty / 1000;
+    return qty;
+  };
+
+  const fromBaseQuantity = (qty: number, baseUnit: string, toUnit: string) => {
+    if (!qty || !baseUnit || !toUnit || baseUnit === toUnit) return qty;
+    if (baseUnit === "ml" && toUnit === "L") return qty / 1000;
+    if (baseUnit === "L" && toUnit === "ml") return qty * 1000;
+    if (baseUnit === "g" && toUnit === "Kg") return qty / 1000;
+    if (baseUnit === "Kg" && toUnit === "g") return qty * 1000;
+    return qty;
+  };
+
   const createMutation = useMutation({
     mutationFn: (newRecipe: NewRecipe) => createRecipe(newRecipe),
     onSuccess: () => {
@@ -41,7 +84,7 @@ export default function Recipes() {
       toast({ title: "Recipe created successfully" });
       setIsCreateDialogOpen(false);
       setName("");
-      setRecipeItems([{ childItemId: "", quantity: 0 }]);
+      setRecipeItems([{ childItemId: "", quantity: 0, unit: "" }]);
     },
     onError: (error: Error) => {
       toast({ title: "Failed to create recipe", description: error.message, variant: "destructive" });
@@ -73,16 +116,29 @@ export default function Recipes() {
   });
 
   const handleAddItem = () => {
-    setRecipeItems([...recipeItems, { childItemId: "", quantity: 0 }]);
+    setRecipeItems([...recipeItems, { childItemId: "", quantity: 0, unit: "" }]);
   };
 
-  const handleItemChange = (index: number, field: "childItemId" | "quantity", value: string) => {
+  const handleItemChange = (index: number, field: "childItemId" | "quantity" | "unit", value: string) => {
     const newItems = [...recipeItems];
+    const current = newItems[index];
+    const rawMaterial = rawMaterialMap.get(field === "childItemId" ? value : current.childItemId);
+    const baseUnit = rawMaterial?.unit || current.unit || "";
     if (field === "quantity") {
-      newItems[index][field] = parseFloat(value) || 0; // Convert to number
-    } else {
-      newItems[index][field] = value;
+      const numericValue = Number(value);
+      current.quantity = Number.isNaN(numericValue) ? 0 : numericValue;
+    } else if (field === "childItemId") {
+      current.childItemId = value;
+      current.unit = rawMaterial?.unit || current.unit || "";
+    } else if (field === "unit") {
+      const oldUnit = current.unit || baseUnit;
+      const displayQty = Number(current.quantity) || 0;
+      const baseQty = toBaseQuantity(displayQty, oldUnit, baseUnit);
+      const newDisplayQty = fromBaseQuantity(baseQty, baseUnit, value);
+      current.unit = value;
+      current.quantity = Number.isFinite(newDisplayQty) ? newDisplayQty : 0;
     }
+    newItems[index] = current;
     setRecipeItems(newItems);
   };
 
@@ -94,7 +150,17 @@ export default function Recipes() {
   const openEditDialog = (recipe: Recipe) => {
     setEditRecipe(recipe);
     setName(recipe.name);
-    setRecipeItems(recipe.items.map(item => ({ ...item, quantity: Number(item.quantity) })) || [{ childItemId: "", quantity: 0 }]);
+    setRecipeItems(
+      recipe.items.map(item => {
+        const rm = rawMaterialMap.get(item.childItemId);
+        const baseUnit = rm?.unit || "";
+        return {
+          childItemId: item.childItemId,
+          quantity: Number(item.quantity),
+          unit: baseUnit,
+        };
+      }) || [{ childItemId: "", quantity: 0, unit: "" }]
+    );
     setIsEditDialogOpen(true);
   };
 
@@ -102,6 +168,21 @@ export default function Recipes() {
   const filteredRecipes = recipes.filter((recipe) =>
     recipe.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const hasValidItems = recipeItems.some(
+    (item) => item.childItemId && item.childItemId.trim() && Number(item.quantity) > 0
+  );
+
+  const sanitizeItems = () =>
+    recipeItems
+      .filter((item) => item.childItemId && item.childItemId.trim() && Number(item.quantity) > 0)
+      .map((item) => {
+        const rm = rawMaterialMap.get(item.childItemId);
+        const baseUnit = rm?.unit || item.unit || "";
+        const displayUnit = item.unit || baseUnit;
+        const baseQty = toBaseQuantity(Number(item.quantity), displayUnit, baseUnit);
+        return { childItemId: item.childItemId, quantity: baseQty };
+      });
 
   if (isLoading) return <div>Loading...</div>;
 
@@ -126,8 +207,23 @@ export default function Recipes() {
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>Create New Recipe</DialogTitle>
+              <DialogDescription>Define a recipe using raw materials and quantities.</DialogDescription>
             </DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate({ name, items: recipeItems }); }}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!hasRawMaterials) {
+                  toast({ title: "No raw materials available", description: "Add raw materials first.", variant: "destructive" });
+                  return;
+                }
+                const items = sanitizeItems();
+                if (!items.length) {
+                  toast({ title: "Add at least one raw material with a quantity > 0", variant: "destructive" });
+                  return;
+                }
+                createMutation.mutate({ name: name.trim(), items });
+              }}
+            >
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="name">Name</Label>
@@ -135,6 +231,9 @@ export default function Recipes() {
                 </div>
                 <div>
                   <h3 className="font-medium mb-2">Raw Materials</h3>
+                  {!hasRawMaterials && (
+                    <p className="text-sm text-muted-foreground">No raw materials available. Please create raw materials first.</p>
+                  )}
                   {recipeItems.map((item, index) => (
                     <div key={index} className="flex gap-2 mb-2 items-center">
                       <Select onValueChange={(v) => handleItemChange(index, "childItemId", v)} value={item.childItemId}>
@@ -149,19 +248,51 @@ export default function Recipes() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <Input type="number" placeholder="Quantity" value={item.quantity} onChange={(e) => handleItemChange(index, "quantity", e.target.value)} className="w-24" />
+                      <Select
+                        onValueChange={(v) => handleItemChange(index, "unit", v)}
+                        value={item.unit || rawMaterialMap.get(item.childItemId)?.unit || ""}
+                        disabled={!item.childItemId}
+                      >
+                        <SelectTrigger className="w-[100px]">
+                          <SelectValue placeholder="Unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getAllowedUnits(rawMaterialMap.get(item.childItemId)?.unit).map((u) => (
+                            <SelectItem key={u} value={u}>
+                              {u}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        placeholder="Quantity"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
+                        className="w-24"
+                        min="0.0001"
+                        step="0.0001"
+                      />
                       <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem(index)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
-                  <Button type="button" variant="outline" onClick={handleAddItem}>
+                  <Button type="button" variant="outline" onClick={handleAddItem} disabled={!hasRawMaterials}>
                     Add Raw Material
                   </Button>
                 </div>
               </div>
               <div className="flex justify-end mt-4">
-                <Button type="submit" disabled={createMutation.isPending}>
+                <Button
+                  type="submit"
+                  disabled={
+                    createMutation.isPending ||
+                    !name.trim() ||
+                    !hasValidItems ||
+                    !hasRawMaterials
+                  }
+                >
                   {createMutation.isPending ? "Creating..." : "Create Recipe"}
                 </Button>
               </div>
@@ -173,6 +304,7 @@ export default function Recipes() {
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
+            <TableHead>Raw Materials</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -180,6 +312,26 @@ export default function Recipes() {
           {filteredRecipes.map((recipe) => (
             <TableRow key={recipe.id}>
               <TableCell>{recipe.name}</TableCell>
+              <TableCell>
+                {recipe.items && recipe.items.length > 0 ? (
+                  <div>
+                    {recipe.items.map((item) => {
+                      const rm = rawMaterialMap.get(item.childItemId);
+                      const display = getDisplayQuantity(rm?.unit, Number(item.quantity));
+                      const unitLabel = display.unit ? ` ${display.unit}` : "";
+                      const qtyLabel = Number.isFinite(display.qty) ? display.qty : item.quantity;
+                      return (
+                        <div key={`${recipe.id}-${item.childItemId}`}>
+                          {rm?.name ?? "Unknown"}: {qtyLabel}
+                          {unitLabel}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  "-"
+                )}
+              </TableCell>
               <TableCell>
                 <Button variant="outline" onClick={() => openEditDialog(recipe)}>Edit</Button>
                 <Button variant="destructive" onClick={() => {
@@ -196,13 +348,24 @@ export default function Recipes() {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Edit Recipe</DialogTitle>
+            <DialogDescription>Update the name and ingredient quantities for this recipe.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={(e) => { 
-            e.preventDefault(); 
-            if (editRecipe) {
-              updateMutation.mutate({ id: editRecipe.id, data: { name, items: recipeItems } }); 
-            }
-          }}>
+          <form
+            onSubmit={(e) => { 
+              e.preventDefault(); 
+              if (!editRecipe) return;
+              if (!hasRawMaterials) {
+                toast({ title: "No raw materials available", description: "Add raw materials first.", variant: "destructive" });
+                return;
+              }
+              const items = sanitizeItems();
+              if (!items.length) {
+                toast({ title: "Add at least one raw material with a quantity > 0", variant: "destructive" });
+                return;
+              }
+              updateMutation.mutate({ id: editRecipe.id, data: { name: name.trim(), items } }); 
+            }}
+          >
             <div className="space-y-4">
               <div>
                 <Label htmlFor="name">Name</Label>
@@ -210,6 +373,9 @@ export default function Recipes() {
               </div>
               <div>
                 <h3 className="font-medium mb-2">Raw Materials</h3>
+                {!hasRawMaterials && (
+                  <p className="text-sm text-muted-foreground">No raw materials available. Please create raw materials first.</p>
+                )}
                 {recipeItems.map((item, index) => (
                   <div key={index} className="flex gap-2 mb-2 items-center">
                     <Select onValueChange={(v) => handleItemChange(index, "childItemId", v)} value={item.childItemId}>
@@ -224,19 +390,51 @@ export default function Recipes() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Input type="number" placeholder="Quantity" value={item.quantity} onChange={(e) => handleItemChange(index, "quantity", e.target.value)} className="w-24" />
+                    <Select
+                      onValueChange={(v) => handleItemChange(index, "unit", v)}
+                      value={item.unit || rawMaterialMap.get(item.childItemId)?.unit || ""}
+                      disabled={!item.childItemId}
+                    >
+                      <SelectTrigger className="w-[100px]">
+                        <SelectValue placeholder="Unit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAllowedUnits(rawMaterialMap.get(item.childItemId)?.unit).map((u) => (
+                          <SelectItem key={u} value={u}>
+                            {u}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      placeholder="Quantity"
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
+                      className="w-24"
+                      min="0.0001"
+                      step="0.0001"
+                    />
                     <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem(index)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}
-                <Button type="button" variant="outline" onClick={handleAddItem}>
+                <Button type="button" variant="outline" onClick={handleAddItem} disabled={!hasRawMaterials}>
                   Add Raw Material
                 </Button>
               </div>
             </div>
             <div className="flex justify-end mt-4">
-              <Button type="submit" disabled={updateMutation.isPending}>
+              <Button
+                type="submit"
+                disabled={
+                  updateMutation.isPending ||
+                  !name.trim() ||
+                  !hasValidItems ||
+                  !hasRawMaterials
+                }
+              >
                 {updateMutation.isPending ? "Updating..." : "Update Recipe"}
               </Button>
             </div>

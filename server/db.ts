@@ -95,6 +95,9 @@ try {
       type TEXT NOT NULL CHECK(type IN ('RAW', 'PRODUCT')),
       unit TEXT NOT NULL,
       price REAL,
+      bulkUnit TEXT,  -- New: optional bulk type (e.g., pack)
+      bulkQuantity REAL,  -- New: optional quantity per bulk unit
+      bulkPrice REAL,  -- New: optional price per bulk unit
       low_stock_level REAL,
       recipeId TEXT,
       created_at INTEGER DEFAULT (unixepoch()) NOT NULL,

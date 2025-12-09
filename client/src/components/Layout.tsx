@@ -76,6 +76,12 @@ export default function Layout({ children, title, description }: LayoutProps) {
       roles: ["ADMIN", "CASHIER", "DEV"],
     },
     {
+      name: "Purchases",
+      href: "/purchases",
+      icon: ShoppingCart,
+      roles: ["ADMIN", "DEV"],
+    },
+    {
       name: "Raw Materials",
       href: "/raw-materials",
       icon: Package,
@@ -95,12 +101,6 @@ export default function Layout({ children, title, description }: LayoutProps) {
       roles: ["ADMIN", "DEV"],
     },
     {
-      name: "Purchases",
-      href: "/purchases",
-      icon: ShoppingCart,
-      roles: ["ADMIN", "DEV"],
-    },
-    {
       name: "Point of Sale",
       href: "/sales",
       icon: ScanBarcode,
@@ -117,12 +117,6 @@ export default function Layout({ children, title, description }: LayoutProps) {
       href: "/kitchen",
       icon: Utensils,
       roles: ["KITCHEN", "DEV"],
-    },
-    {
-      name: "Expenses",
-      href: "/expenses",
-      icon: Receipt,
-      roles: ["ADMIN", "DEV"],
     },
     {
       name: "Reports",
@@ -171,7 +165,7 @@ export default function Layout({ children, title, description }: LayoutProps) {
                 className="text-lg font-bold text-foreground"
                 data-testid="app-title"
               >
-                Business Tracker
+                FROM
               </h1>
               <p className="text-sm text-muted-foreground">Dashboard</p>
             </div>

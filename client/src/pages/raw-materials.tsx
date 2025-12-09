@@ -127,7 +127,7 @@ export default function RawMaterials() {
       <DialogTitle>Create New Raw Material</DialogTitle>
       <DialogDescription>Enter the details for the new raw material.</DialogDescription>
     </DialogHeader>
-    <ItemForm items={items} onSubmit={(values: NewItem) => createMutation.mutate(values as NewItem)} isPending={createMutation.isPending} />
+    <ItemForm items={items} onSubmit={(values: NewItem) => createMutation.mutate(values as NewItem)} isPending={createMutation.isPending} fixedType="RAW" />
   </DialogContent>
 </Dialog>
 

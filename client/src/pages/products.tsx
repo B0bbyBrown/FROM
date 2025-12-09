@@ -3,7 +3,7 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getRawMaterials, createRawMaterial, updateItem, deleteItem, getRecipes } from "@/lib/api";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { NewItem } from "@shared/schema";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,6 +18,7 @@ export default function Products() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [deleteItemId, setDeleteItemId] = useState(null);
+  const [createInitialValues, setCreateInitialValues] = useState<Partial<NewItem> | null>(null);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["/api/raw-materials", "PRODUCT"],
@@ -33,6 +34,24 @@ export default function Products() {
     queryKey: ["/api/recipes"],
     queryFn: getRecipes,
   });
+
+  const recipeMap = new Map(recipes.map((r) => [r.id, r.name]));
+
+  // Derive recipes that don't yet have a product item linked
+  const recipeIdsWithProduct = new Set(items.filter((i: any) => i.recipeId).map((i: any) => i.recipeId));
+  const recipeOnlyRows = recipes
+    .filter((r: any) => !recipeIdsWithProduct.has(r.id))
+    .map((r: any) => ({
+      id: `recipe-${r.id}`,
+      name: r.name,
+      sku: "",
+      unit: "",
+      price: null,
+      recipeId: r.id,
+      _isRecipeOnly: true,
+    }));
+
+  const tableRows = [...items, ...recipeOnlyRows];
 
   const createMutation = useMutation({
     mutationFn: (newItem: NewItem) => createRawMaterial(newItem),
@@ -77,13 +96,23 @@ export default function Products() {
       <div className="flex justify-end mb-4">
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button>Create New Product</Button>
+            <Button onClick={() => setCreateInitialValues(null)}>Create New Product</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>Create New Product</DialogTitle>
+              <DialogDescription>Set up a product, optionally linking it to a recipe.</DialogDescription>
             </DialogHeader>
-            <ItemForm items={allItems} onSubmit={(values) => createMutation.mutate(values)} isPending={createMutation.isPending} fixedType="PRODUCT" recipes={recipes} />
+            <ItemForm 
+              items={allItems} 
+              recipes={recipes} 
+              onSubmit={(values: NewItem) => createMutation.mutate(values as NewItem)} 
+              isPending={createMutation.isPending} 
+              fixedType="PRODUCT" 
+              initialValues={createInitialValues ?? undefined}
+            lockedRecipeId={createInitialValues?.recipeId}
+            lockedRecipeName={createInitialValues?.recipeId ? recipeMap.get(createInitialValues.recipeId) : undefined}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -94,25 +123,45 @@ export default function Products() {
             <TableHead>SKU</TableHead>
             <TableHead>Unit</TableHead>
             <TableHead>Price</TableHead>
+            <TableHead>Recipe</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item) => (
+          {tableRows.map((item: any) => (
             <TableRow key={item.id}>
               <TableCell>{item.name}</TableCell>
               <TableCell>{item.sku}</TableCell>
               <TableCell>{item.unit}</TableCell>
               <TableCell>{item.price ? formatCurrency(item.price) : "-"}</TableCell>
+              <TableCell>{item.recipeId ? recipeMap.get(item.recipeId) || "-" : "Standalone"}</TableCell>
               <TableCell>
-                <Button variant="outline" onClick={() => {
-                  setEditItem(item);
-                  setIsEditDialogOpen(true);
-                }}>Edit</Button>
-                <Button variant="destructive" onClick={() => {
-                  setDeleteItemId(item.id);
-                  setIsDeleteDialogOpen(true);
-                }}>Delete</Button>
+                {item._isRecipeOnly ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCreateInitialValues({
+                        name: item.name,
+                        recipeId: item.recipeId,
+                        type: "PRODUCT",
+                      });
+                      setIsCreateDialogOpen(true);
+                    }}
+                  >
+                    Create Product
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={() => {
+                      setEditItem(item);
+                      setIsEditDialogOpen(true);
+                    }}>Edit</Button>
+                    <Button variant="destructive" onClick={() => {
+                      setDeleteItemId(item.id);
+                      setIsDeleteDialogOpen(true);
+                    }}>Delete</Button>
+                  </>
+                )}
               </TableCell>
             </TableRow>
           ))}
@@ -122,6 +171,7 @@ export default function Products() {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>Update product details or its linked recipe.</DialogDescription>
           </DialogHeader>
           <ItemForm 
             items={allItems}
@@ -130,6 +180,8 @@ export default function Products() {
             fixedType="PRODUCT"
             initialValues={editItem}
             recipes={recipes}
+            lockedRecipeId={undefined}
+            lockedRecipeName={undefined}
           />
         </DialogContent>
       </Dialog>

@@ -36,11 +36,17 @@ import {
   getSuppliers,
   createSupplier,
   getRawMaterials,
+  createRawMaterial,
 } from "@/lib/api";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useEffect } from "react";
+import { ItemForm } from "@/components/ItemForm";
+
+const SUPPLIERS_KEY = ["/api/suppliers"];
+const RAW_MATERIALS_KEY = ["/api/raw-materials"];
 
 interface PurchaseItem {
   itemId: string;
@@ -50,6 +56,10 @@ interface PurchaseItem {
 
 export default function Purchases() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isSupplierSelectOpen, setIsSupplierSelectOpen] = useState(false);
+  const [reopenSupplierSelect, setReopenSupplierSelect] = useState(false);
+  const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
+  const [addItemRowIndex, setAddItemRowIndex] = useState<number | null>(null);
 
   // Form state
   const [selectedSupplier, setSelectedSupplier] = useState("");
@@ -69,29 +79,77 @@ export default function Purchases() {
   const { data: purchases = [], isLoading: purchasesLoading } = useQuery({
     queryKey: ["/api/purchases"],
     queryFn: () => getPurchases(),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    onSuccess: (fetched) => {
+      console.log("Purchases fetched:", fetched);
+    },
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["/api/raw-materials"],
+    queryKey: RAW_MATERIALS_KEY,
     queryFn: getRawMaterials,
+    staleTime: 0,
+    select: (fetched) => {
+      const cached = (queryClient.getQueryData(RAW_MATERIALS_KEY) as any[]) || [];
+      const byId = new Map<string, any>();
+      cached.forEach((c) => byId.set(c.id, c));
+      fetched.forEach((f: any) => byId.set(f.id, f));
+      const merged = Array.from(byId.values());
+      queryClient.setQueryData(RAW_MATERIALS_KEY, merged);
+      console.log("Raw materials merged (select):", merged);
+      return merged;
+    },
   });
-  const rawItems = items.filter((item) => item.type === "RAW");
+  const rawItems = items.filter((item: any) => item.type === "RAW");
 
   const { data: suppliers = [] } = useQuery({
-    queryKey: ["/api/suppliers"],
+    queryKey: SUPPLIERS_KEY,
     queryFn: () => getSuppliers(),
+    staleTime: 0,
+    select: (fetched) => {
+      const cached = (queryClient.getQueryData(SUPPLIERS_KEY) as any[]) || [];
+      // Prefer fetched data for existing ids, but include optimistic ones too
+      const byId = new Map<string, any>();
+      cached.forEach((c) => byId.set(c.id, c));
+      fetched.forEach((f: any) => byId.set(f.id, f));
+      const merged = Array.from(byId.values());
+      queryClient.setQueryData(SUPPLIERS_KEY, merged);
+      console.log("Suppliers merged (select):", merged);
+      return merged;
+    },
   });
+
+  // Debug: log supplier list when it changes and optionally reopen select
+  useEffect(() => {
+    console.log("Suppliers fetched:", suppliers);
+    if (reopenSupplierSelect) {
+      setIsSupplierSelectOpen(true);
+      setReopenSupplierSelect(false);
+    }
+  }, [suppliers, reopenSupplierSelect]);
 
   const createPurchaseMutation = useMutation({
     mutationFn: createPurchase,
-    onSuccess: (newPurchase) => {
+    onSuccess: async (newPurchase) => {
       toast({
         title: "Success",
         description: "Purchase order created successfully",
       });
+      // Optimistically add the new purchase
       queryClient.setQueryData(["/api/purchases"], (oldData: any) => {
         return oldData ? [newPurchase, ...oldData] : [newPurchase];
       });
+      // Force a fresh fetch and replace cache with server truth
+      const fresh = await queryClient.fetchQuery({
+        queryKey: ["/api/purchases"],
+        queryFn: () => getPurchases(),
+      });
+      queryClient.setQueryData(["/api/purchases"], fresh);
+      console.log("Purchases refreshed after create:", fresh);
+      console.log("Purchase history now:", queryClient.getQueryData(["/api/purchases"]));
+
       queryClient.invalidateQueries({ queryKey: ["/api/stock/current"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stock/movements"] });
       resetForm();
@@ -108,21 +166,90 @@ export default function Purchases() {
 
   const createSupplierMutation = useMutation({
     mutationFn: createSupplier,
-    onSuccess: () => {
+    onSuccess: async (created) => {
+      console.log("Supplier created:", created);
       toast({
         title: "Success",
         description: "Supplier created successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
+      // Start with current list plus the created supplier (dedupe by id)
+      const mergedLocal = [
+        ...suppliers.filter((s: any) => s.id !== created.id),
+        created,
+      ];
+      queryClient.setQueryData(SUPPLIERS_KEY, mergedLocal);
+
+      // Optionally let a background invalidate run, but keep the optimistic list to avoid drops
+      queryClient.invalidateQueries({ queryKey: SUPPLIERS_KEY });
+      console.log("Suppliers cache after create (optimistic):", mergedLocal);
+
+      if (created?.id) {
+        setSelectedSupplier(created.id);
+        setIsSupplierSelectOpen(false);
+        setReopenSupplierSelect(true);
+      }
       setIsAddSupplierDialogOpen(false);
       setNewSupplierName("");
       setNewSupplierPhone("");
       setNewSupplierEmail("");
     },
     onError: (error: any) => {
+      console.error("Create supplier failed:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create supplier",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createRawMaterialMutation = useMutation({
+    mutationFn: (input: { payload: any; initialQuantity?: number }) =>
+      createRawMaterial(input.payload),
+    onSuccess: (created, variables: any) => {
+      console.log("Item created:", created);
+      queryClient.setQueryData(RAW_MATERIALS_KEY, (old: any) => {
+        const existing = Array.isArray(old) ? old : [];
+        return [...existing.filter((i: any) => i.id !== created.id), created];
+      });
+      queryClient.setQueryData(["/api/items"], (old: any) => {
+        const existing = Array.isArray(old) ? old : [];
+        return [...existing.filter((i: any) => i.id !== created.id), created];
+      });
+      queryClient.invalidateQueries({ queryKey: RAW_MATERIALS_KEY });
+      queryClient.invalidateQueries({ queryKey: ["/api/items"] });
+      if (addItemRowIndex !== null) {
+        updatePurchaseItem(addItemRowIndex, "itemId", created.id);
+        // Prefill quantity and total cost so the row is usable immediately
+        const defaultQtyRaw =
+          variables?.initialQuantity ??
+          variables?.initial_quantity ??
+          created.initialQuantity ??
+          1;
+        const defaultQty = Number(defaultQtyRaw) > 0 ? Number(defaultQtyRaw) : 1;
+        const price = Number(
+          variables?.payload?.price ?? variables?.price ?? created.price ?? 0
+        );
+        const total = price && defaultQty ? price * defaultQty : 0;
+        updatePurchaseItem(addItemRowIndex, "quantity", String(defaultQty));
+        updatePurchaseItem(
+          addItemRowIndex,
+          "totalCost",
+          total ? total.toFixed(2) : "0.00"
+        );
+      }
+      setIsAddItemDialogOpen(false);
+      setAddItemRowIndex(null);
+      toast({
+        title: "Success",
+        description: "Item created and added to list",
+      });
+    },
+    onError: (error: any) => {
+      console.error("Create item failed:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create item",
         variant: "destructive",
       });
     },
@@ -241,12 +368,16 @@ export default function Purchases() {
                 <div>
                   <Label htmlFor="supplier">Supplier (optional)</Label>
                   <Select
+                    open={isSupplierSelectOpen}
+                    onOpenChange={setIsSupplierSelectOpen}
                     value={selectedSupplier}
                     onValueChange={(value) => {
                       if (value === "add-new") {
                         setIsAddSupplierDialogOpen(true);
+                        setIsSupplierSelectOpen(false);
                       } else {
                         setSelectedSupplier(value);
+                        setIsSupplierSelectOpen(false);
                       }
                     }}
                   >
@@ -301,6 +432,11 @@ export default function Purchases() {
                           <Select
                             value={item.itemId}
                             onValueChange={(value) => {
+                              if (value === "add-new-item") {
+                                setAddItemRowIndex(index);
+                                setIsAddItemDialogOpen(true);
+                                return;
+                              }
                               updatePurchaseItem(index, "itemId", value);
                             }}
                           >
@@ -308,6 +444,7 @@ export default function Purchases() {
                               <SelectValue placeholder="Select item" />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="add-new-item">Add New Item</SelectItem>
                               {rawItems.map((rawItem: any) => (
                                 <SelectItem key={rawItem.id} value={rawItem.id}>
                                   {rawItem.name} ({rawItem.unit})
@@ -382,6 +519,34 @@ export default function Purchases() {
                   ))}
                 </div>
               </div>
+
+              {/* Add New Item Dialog */}
+              <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>Add New Item</DialogTitle>
+                    <DialogDescription>Create a raw material to add to this purchase.</DialogDescription>
+                  </DialogHeader>
+                  <ItemForm
+                    items={rawItems}
+                    recipes={[]}
+                    fixedType="RAW"
+                    onSubmit={(values: any) => {
+                      const { initialQuantity, initial_quantity, ...rest } = values || {};
+                      const payload = { ...rest };
+                      // Remove any client-only quantity fields before sending to API
+                      delete (payload as any).initialQuantity;
+                      delete (payload as any).initial_quantity;
+                      createRawMaterialMutation.mutate({
+                        payload,
+                        initialQuantity:
+                          initialQuantity ?? initial_quantity ?? undefined,
+                      });
+                    }}
+                    isPending={createRawMaterialMutation.isPending}
+                  />
+                </DialogContent>
+              </Dialog>
 
               {/* Total */}
               <Card className="p-4 bg-muted/50">
@@ -471,7 +636,28 @@ export default function Purchases() {
       {/* Purchase History */}
       <Card data-testid="purchases-history-card">
         <CardHeader>
-          <CardTitle>Purchase History</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CardTitle>Purchase History</CardTitle>
+              <span className="text-sm text-muted-foreground">
+                {`(${purchases?.length || 0} records)`}
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/purchases"] });
+                queryClient.refetchQueries({
+                  queryKey: ["/api/purchases"],
+                  exact: true,
+                });
+              }}
+              data-testid="refresh-purchases-button"
+            >
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {purchasesLoading ? (

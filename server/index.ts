@@ -40,8 +40,8 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Seed the database if the RESET_DB environment variable is set
-  if (process.env.RESET_DB) {
+  // Seed the database if RESET_DB is set and we are not explicitly skipping seed
+  if (process.env.RESET_DB && !process.env.SKIP_SEED) {
     await seed();
   }
 

@@ -3,6 +3,8 @@ export async function apiRequest(method: string, url: string, data?: any) {
     method,
     headers: { "Content-Type": "application/json" },
     credentials: "include", // For sessions/cookies
+    // Avoid HTTP cache for GETs so fresh lists (e.g., suppliers) are always returned
+    cache: method === "GET" ? "no-store" : undefined,
     body: data ? JSON.stringify(data) : undefined,
   };
 
@@ -45,13 +47,7 @@ export const createSupplier = async (data: {
   phone?: string;
   email?: string;
 }) => {
-  const response = await fetch("/api/suppliers", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) throw new Error("Failed to create supplier");
-  return response.json();
+  return apiRequest("POST", "/api/suppliers", data);
 };
 
 // Purchases

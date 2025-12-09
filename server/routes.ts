@@ -12,6 +12,7 @@ import {
   closeSessionSchema,
   insertUserSchema,
   newItemSchema,
+  newRecipeSchema,
 } from "@shared/schema";
 import session from "express-session";
 import bcrypt from "bcryptjs";
@@ -176,7 +177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     authMiddleware("ADMIN"),
     async (req: Request, res: Response) => {
       try {
-        const data = newItemSchema.parse(req.body);
+        const data = newItemSchema.parse(req.body);  // Schema should include new fields
         const item = await storage.createItem(data);
         res.json(item);
       } catch (error: any) {
@@ -195,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const id = req.params.id;
-        const data = req.body; // Validate with schema if needed
+        const data = req.body;  // Validate if needed with updated schema
         const updatedItem = await storage.updateItem(id, data);
         res.json(updatedItem);
       } catch (error) {
@@ -212,8 +213,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const id = req.params.id;
         await storage.deleteItem(id);
         res.json({ success: true });
-      } catch (error) {
-        res.status(500).json({ error: "Failed to delete item" });
+      } catch (error: any) {
+        console.error("Failed to delete item:", error);
+        const msg = error?.message || "Failed to delete item";
+        // Surface potential FK/constraint hints to client
+        res.status(400).json({
+          error: "Failed to delete item",
+          details: msg,
+        });
       }
     }
   );
@@ -259,8 +266,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/recipes", authMiddleware("ADMIN"), async (req: Request, res: Response) => {
     try {
-      const data = newItemSchema.parse(req.body); // Assuming newItemSchema is the correct schema for recipes
-      const recipe = await storage.createItem(data); // Assuming createItem is the correct method for recipes
+      const data = newRecipeSchema.parse(req.body);
+      const recipe = await storage.createRecipe(data);
       res.json(recipe);
     } catch (error: any) {
       res.status(400).json({ error: "Invalid recipe data", details: error.errors || error.message });
@@ -269,8 +276,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/recipes/:id", authMiddleware("ADMIN"), async (req: Request, res: Response) => {
     try {
-      const data = newItemSchema.parse(req.body); // Assuming newItemSchema is the correct schema for recipes
-      const recipe = await storage.updateItem(req.params.id, data); // Assuming updateItem is the correct method for recipes
+      const data = newRecipeSchema.parse(req.body);
+      const recipe = await storage.updateRecipe(req.params.id, data);
       res.json(recipe);
     } catch (error: any) {
       res.status(400).json({ error: "Invalid recipe data", details: error.errors || error.message });
@@ -299,10 +306,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/suppliers", async (req: Request, res: Response) => {
     try {
       const data = insertSupplierSchema.parse(req.body);
+      console.log("Creating supplier with payload:", data);
       const supplier = await storage.createSupplier(data);
+      console.log("Created supplier:", supplier);
       res.json(supplier);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid supplier data" });
+    } catch (error: any) {
+      console.error("Failed to create supplier:", error);
+      const message = error?.message || "Invalid supplier data";
+      // Handle unique constraint (duplicate name) explicitly
+      if (message.includes("UNIQUE") || message.includes("constraint")) {
+        return res
+          .status(409)
+          .json({ error: "Supplier name must be unique", details: message });
+      }
+      // Surface Zod issues if present
+      const details = (error.errors || error.issues || []).map((e: any) => e.message).join(", ");
+      res
+        .status(400)
+        .json({ error: "Invalid supplier data", details: details || message });
     }
   });
 

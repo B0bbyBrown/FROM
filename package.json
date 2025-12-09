@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "cross-env PORT=5082 SESSION_SECRET=dev-secret NODE_ENV=development tsx server/index.ts",
     "dev:reset": "cross-env PORT=5082 SESSION_SECRET=dev-secret NODE_ENV=development RESET_DB=true tsx server/index.ts",
+    "dev:reset:empty": "cross-env PORT=5082 SESSION_SECRET=dev-secret NODE_ENV=development RESET_DB=true SKIP_SEED=true tsx server/index.ts",
     "dev:test": "cross-env PORT=5082 SESSION_SECRET=dev-secret NODE_ENV=development CYPRESS_TEST=true tsx server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
@@ -14,7 +15,8 @@
     "db:studio": "drizzle-kit studio",
     "test:e2e": "cross-env RESET_DB=true CYPRESS_TEST=true tsx server/reset-and-seed.ts && cross-env CYPRESS_TEST=true npx cypress run",
     "test:e2e:open": "cross-env RESET_DB=true CYPRESS_TEST=true tsx server/reset-and-seed.ts && cross-env CYPRESS_TEST=true npx cypress open",
-    "reset-and-seed": "tsx server/reset-and-seed.ts"
+    "reset-and-seed": "tsx server/reset-and-seed.ts",
+    "seed:users": "tsx server/seed-users.ts"
   },
   "engines": {
     "node": ">=20.x"
