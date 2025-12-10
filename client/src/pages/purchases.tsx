@@ -60,6 +60,7 @@ export default function Purchases() {
   const [reopenSupplierSelect, setReopenSupplierSelect] = useState(false);
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
   const [addItemRowIndex, setAddItemRowIndex] = useState<number | null>(null);
+  const [viewPurchase, setViewPurchase] = useState<any | null>(null);
 
   // Form state
   const [selectedSupplier, setSelectedSupplier] = useState("");
@@ -718,6 +719,7 @@ export default function Purchases() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => setViewPurchase(purchase)}
                         data-testid={`view-purchase-${index}`}
                       >
                         <Package className="h-4 w-4" />
@@ -730,6 +732,122 @@ export default function Purchases() {
           )}
         </CardContent>
       </Card>
+
+      {/* View Purchase Details */}
+      <Dialog
+        open={Boolean(viewPurchase)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewPurchase(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl" data-testid="view-purchase-dialog">
+          <DialogHeader>
+            <DialogTitle>Purchase Details</DialogTitle>
+            <DialogDescription>
+              Review the items and costs for this purchase order.
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewPurchase && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Purchase ID</p>
+                  <p className="font-mono">
+                    #{viewPurchase.id.slice(-8).toUpperCase()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Date</p>
+                  <p>{formatDate(viewPurchase.createdAt)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Supplier</p>
+                  <p>
+                    {viewPurchase.supplierId
+                      ? suppliers.find((s: any) => s.id === viewPurchase.supplierId)
+                          ?.name || "Unknown"
+                      : "No supplier"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Notes</p>
+                  <p className="break-words">
+                    {viewPurchase.notes || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Total Cost</p>
+                  <p className="font-semibold">
+                    {formatCurrency(
+                      viewPurchase.items?.reduce(
+                        (sum: number, item: any) =>
+                          sum + (Number(item.totalCost) || 0),
+                        0
+                      ) || 0
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Line Items</p>
+                  <p>{viewPurchase.items?.length || 0} items</p>
+                </div>
+              </div>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Item</TableHead>
+                    <TableHead className="w-[120px]">Quantity</TableHead>
+                    <TableHead className="w-[120px]">Total Cost</TableHead>
+                    <TableHead className="w-[120px]">Unit Cost</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(viewPurchase.items || []).map((item: any) => {
+                    const matchedItem =
+                      rawItems.find((raw: any) => raw.id === item.itemId) ||
+                      items.find((raw: any) => raw.id === item.itemId);
+                    const unitCost =
+                      Number(item.totalCost) && Number(item.quantity)
+                        ? Number(item.totalCost) / Number(item.quantity)
+                        : 0;
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span>{matchedItem?.name || "Unknown item"}</span>
+                            {matchedItem?.unit && (
+                              <span className="text-xs text-muted-foreground">
+                                Unit: {matchedItem.unit}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {Number(item.quantity).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          {formatCurrency(Number(item.totalCost) || 0)}
+                        </TableCell>
+                        <TableCell>{formatCurrency(unitCost)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+
+              <div className="flex justify-end">
+                <Button onClick={() => setViewPurchase(null)} variant="secondary">
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

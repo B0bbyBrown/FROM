@@ -19,21 +19,13 @@ import bcrypt from "bcryptjs";
 import { Request, Response, NextFunction } from "express";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
+import { log } from "./vite";
 
 declare module "express-session" {
   interface SessionData {
     userId: string;
     role: string;
   }
-}
-
-// Helper to get the default admin user ID
-async function getAdminUserId() {
-  const adminUser = await storage.getUserByEmail("admin@pizzatruck.com");
-  if (!adminUser) {
-    throw new Error("Default admin user not found. Please seed the database.");
-  }
-  return adminUser.id;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -161,8 +153,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     authMiddleware(["ADMIN", "CASHIER", "DEV"]),
     async (req: Request, res: Response) => {
       try {
-        const type = req.query.type as "RAW" | "PRODUCT" | undefined;
-        console.log("Requested item type:", type); // Debug log
+        const rawType = req.query.type;
+        const type =
+          rawType === "RAW" || rawType === "PRODUCT"
+            ? rawType
+            : undefined; // Ignore unexpected values so we still return all items
+        console.log("Requested item type:", rawType); // Debug log
         const items = await storage.getItems(type);
         res.json(items);
       } catch (error) {
@@ -406,9 +402,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/sales", async (req: Request, res: Response) => {
     try {
-      const adminUserId = await getAdminUserId();
       const data = newSaleSchema.parse(req.body);
-      const sale = await storage.createSale(data, adminUserId);
+      const sale = await storage.createSale(data, req.session.userId!);
       res.json(sale);
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Sale creation failed" });
@@ -487,33 +482,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/sessions/open", async (req: Request, res: Response) => {
     try {
-      const adminUserId = await getAdminUserId();
-      console.log(
-        "Opening session with body:",
-        JSON.stringify(req.body, null, 2)
+      log(
+        `[cash-session] open requested by user=${req.session.userId || "unknown"} role=${req.session.role || "unknown"} inventoryCount=${req.body?.inventory?.length ?? 0} raw=${JSON.stringify(req.body)}`
       );
 
       // Check for active session
       const activeSession = await storage.getActiveCashSession();
       if (activeSession) {
+        log(
+          `[cash-session] active session detected id=${activeSession.id}, blocking new open`
+        );
         return res.status(400).json({
           error: "Cannot open a new session while another session is active",
         });
       }
 
       const body = openSessionSchema.parse(req.body);
-      console.log("Parsed session data:", body);
+      log(
+        `[cash-session] parsed payload openingFloat=${body.openingFloat} notesLength=${body.notes?.length ?? 0} inventoryItems=${body.inventory.length}`
+      );
+      if (body.inventory.length > 0) {
+        const sample = body.inventory.slice(0, 10);
+        log(
+          `[cash-session] inventory sample (first ${sample.length}): ${JSON.stringify(
+            sample
+          )}`
+        );
+      }
 
       const session = await storage.openSessionAndMoveStock(
         body,
         req.session.userId!
       );
 
-      console.log("Session created and stock updated successfully:", session);
+      log(
+        `[cash-session] session created id=${session.id} openedBy=${session.openedBy} openingFloat=${session.openingFloat} openedAt=${session.openedAt}`
+      );
 
       res.json(session);
     } catch (error: any) {
       console.error("Failed to open cash session:", error);
+      log(
+        `[cash-session] open failed message=${error?.message || "unknown"} stack=${error?.stack ? error.stack.split("\n")[0] : "n/a"}`
+      );
       if (error.errors || error.issues) {
         // Zod validation error
         return res.status(400).json({
@@ -539,14 +550,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/sessions/:id/close", async (req: Request, res: Response) => {
     try {
-      const adminUserId = await getAdminUserId();
       const body = closeSessionSchema.parse(req.body);
 
       const session = await storage.closeCashSession(
         req.params.id,
         body.closingFloat.toString(),
         body.notes,
-        adminUserId
+        req.session.userId!
       );
 
       await storage.updateStockForSession(

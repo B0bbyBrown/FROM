@@ -16,8 +16,18 @@ export async function apiRequest(method: string, url: string, data?: any) {
   const response = await fetch(`${baseUrl}${url}`, options);
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "API request failed");
+    let errorBody: any = undefined;
+    try {
+      errorBody = await response.json();
+    } catch {
+      // ignore JSON parse errors and fall back to status text
+    }
+    const error: any = new Error(
+      errorBody?.error || response.statusText || "API request failed",
+    );
+    error.status = response.status;
+    error.body = errorBody;
+    throw error;
   }
 
   return response.json();

@@ -54,6 +54,7 @@ interface SaleItem {
 
 export default function Sales() {
   const [, setLocation] = useLocation(); // Use setLocation for navigation
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
   const [paymentType, setPaymentType] = useState<"CASH" | "CARD" | "OTHER">(
     "CASH"
@@ -62,11 +63,19 @@ export default function Sales() {
 
   const { toast } = useToast();
 
-  const { data: products = [] } = useQuery({
+  const {
+    data: products = [],
+    isLoading: productsLoading,
+  } = useQuery({
     queryKey: ["/api/raw-materials"],
     queryFn: getRawMaterials,
   });
-  const sellableItems = products.filter((item) => item.type === "SELLABLE");
+  const sellableItems = products.filter((item) => {
+    // Treat any non-RAW with a price as sellable; include legacy labels
+    if (item.type === "RAW") return false;
+    if (item.type === "PRODUCT" || item.type === "SELLABLE") return true;
+    return !!item.price; // fallback: has a price, allow selling
+  });
 
   const { data: activeSession, isLoading: sessionLoading } = useQuery({
     queryKey: ["/api/sessions/active"],
@@ -117,7 +126,7 @@ export default function Sales() {
     },
   });
 
-  if (sessionLoading || products.length === 0) {
+  if (sessionLoading || productsLoading) {
     return <div>Loading...</div>;
   }
 
@@ -137,6 +146,35 @@ export default function Sales() {
     );
   }
 
+  if (sellableItems.length === 0) {
+    return (
+      <Layout
+        title="Point of Sale"
+        description="Process sales and manage transactions"
+        fullScreen={isFullScreen}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>No products available</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              Add products (type PRODUCT) in Raw Materials to sell them here.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" onClick={() => setLocation("/raw-materials")}>
+                Go to Raw Materials
+              </Button>
+              <Button onClick={() => setIsFullScreen(false)}>
+                Exit Full Screen
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </Layout>
+    );
+  }
+
   const filteredItems = sellableItems.filter(
     (item: any) =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -146,6 +184,16 @@ export default function Sales() {
   const addItemToSale = (itemId: string) => {
     const itemToAdd = sellableItems.find((p: any) => p.id === itemId);
     if (!itemToAdd) return;
+
+    const unitPrice = parseFloat(itemToAdd.price) || 0;
+    if (!unitPrice) {
+      toast({
+        title: "Missing price",
+        description: `Set a price for ${itemToAdd.name} before selling.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     const existingItemIndex = saleItems.findIndex(
       (item) => item.itemId === itemId
@@ -161,8 +209,8 @@ export default function Sales() {
       const newItem: SaleItem = {
         itemId: itemToAdd.id,
         qty: 1,
-        unitPrice: parseFloat(itemToAdd.price),
-        lineTotal: parseFloat(itemToAdd.price),
+        unitPrice,
+        lineTotal: unitPrice,
         itemName: itemToAdd.name,
         sku: itemToAdd.sku,
       };
@@ -228,7 +276,29 @@ export default function Sales() {
     <Layout
       title="Point of Sale"
       description="Process sales and manage transactions"
+      fullScreen={isFullScreen}
     >
+      <div className="flex items-center justify-between mb-4">
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">
+            {isFullScreen
+              ? "Full-screen POS (sidebar/header hidden)"
+              : "Standard layout with navigation"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setLocation("/dashboard")}>
+            Exit to Dashboard
+          </Button>
+          <Button
+            variant={isFullScreen ? "secondary" : "default"}
+            onClick={() => setIsFullScreen((prev) => !prev)}
+            data-testid="pos-fullscreen-toggle"
+          >
+            {isFullScreen ? "Exit Full Screen" : "Full Screen"}
+          </Button>
+        </div>
+      </div>
       {/* Session Status Warning */}
       {!activeSession && (
         <Card

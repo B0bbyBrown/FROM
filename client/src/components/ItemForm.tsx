@@ -27,7 +27,7 @@ export const ItemForm = ({ items, onSubmit, isPending, fixedType, showRecipeOnly
       name: initialValues?.name || '',
       sku: initialValues?.sku || '',
       type: fixedType || initialValues?.type || 'RAW',
-      unit: initialValues?.unit || '',
+      unit: initialValues?.unit || (fixedType === 'PRODUCT' ? 'item' : ''),
       price: initialValues?.price ?? undefined,
       lowStockLevel: initialValues?.lowStockLevel ?? initialValues?.low_stock_level ?? undefined,
       initialQuantity: initialValues?.initialQuantity ?? undefined,
@@ -41,6 +41,14 @@ export const ItemForm = ({ items, onSubmit, isPending, fixedType, showRecipeOnly
     }
   }, [fixedType, form]);
 
+  const watchType = form.watch('type');
+
+  useEffect(() => {
+    if (watchType === 'PRODUCT' && !form.getValues('unit')) {
+      form.setValue('unit', 'item');
+    }
+  }, [form, watchType]);
+
   useEffect(() => {
     if (lockedRecipeId) {
       form.setValue('recipeId', lockedRecipeId);
@@ -51,6 +59,7 @@ export const ItemForm = ({ items, onSubmit, isPending, fixedType, showRecipeOnly
     // Convert strings to numbers where needed
     let values: any = {
       ...data,
+      unit: data.unit || (data.type === 'PRODUCT' ? 'item' : data.unit),
       price: data.price ? parseFloat(String(data.price)) : undefined,
       lowStockLevel: data.lowStockLevel ? parseFloat(String(data.lowStockLevel)) : undefined,
       initialQuantity: data.initialQuantity ? parseFloat(String(data.initialQuantity)) : undefined,

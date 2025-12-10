@@ -236,15 +236,6 @@ export default function Sessions() {
       return;
     }
 
-    if (!rawItems || rawItems.length === 0) {
-      toast({
-        title: "Error",
-        description: "No raw items available. Please add items first.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     // Filter out empty inventory entries
     const inventory = Object.entries(inventorySnapshots)
       .filter(([, quantity]) => quantity && parseFloat(quantity) > 0)
@@ -253,7 +244,7 @@ export default function Sessions() {
         quantity,
       }));
 
-    if (inventory.length === 0) {
+    if (rawItems.length > 0 && inventory.length === 0) {
       toast({
         title: "Error",
         description: "Please enter at least one inventory count",
@@ -290,7 +281,7 @@ export default function Sessions() {
         quantity,
       }));
 
-    if (inventory.length === 0) {
+    if (rawItems.length > 0 && inventory.length === 0) {
       toast({
         title: "Error",
         description: "Please enter at least one inventory count",

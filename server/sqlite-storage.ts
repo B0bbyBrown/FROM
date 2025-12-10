@@ -49,6 +49,7 @@ import { db, sqlite } from "./db";
 import { eq, and, desc, asc, sum, sql, isNull, inArray, ne } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
+import { log } from "./vite";
 
 // Utility functions for type conversion
 const toNum = (value: string | number | null): number => {
@@ -627,44 +628,45 @@ export class SqliteStorage implements IStorage {
     sessionData: OpenSessionRequest,
     userId: string
   ): Promise<CashSession> {
-    return new Promise((resolve) => {
-      const session = sqlite.transaction(() => {
-        const [newSession] = db
-          .insert(cashSessions)
-          .values({
-            openedBy: userId,
-            notes: sessionData.notes,
-            openingFloat: toNum(sessionData.openingFloat),
-          })
-          .returning()
-          .all();
+    log(
+      `[cash-session] storage.openSessionAndMoveStock start user=${userId} openingFloat=${sessionData.openingFloat} notesLength=${sessionData.notes?.length ?? 0} inventoryItems=${sessionData.inventory.length}`
+    );
 
-        if (!newSession) throw new Error("Failed to create session");
+    const session = sqlite.transaction(() => {
+      const [newSession] = db
+        .insert(cashSessions)
+        .values({
+          openedBy: userId,
+          notes: sessionData.notes,
+          openingFloat: toNum(sessionData.openingFloat),
+        })
+        .returning()
+        .all();
 
-        const snapshotItems = db
-          .select({
-            itemId: inventoryLots.itemId,
-            quantity: sum(inventoryLots.quantity).as("quantity"),
-          })
-          .from(inventoryLots)
-          .groupBy(inventoryLots.itemId)
-          .all();
+      if (!newSession) throw new Error("Failed to create session");
+      log(
+        `[cash-session] created session row id=${newSession.id} openedBy=${newSession.openedBy} openingFloat=${newSession.openingFloat}`
+      );
 
-        for (const item of snapshotItems) {
-          db.insert(sessionInventorySnapshots)
-            .values({
-              sessionId: newSession.id,
-              itemId: item.itemId,
-              quantity: toNum(item.quantity),
-              type: "OPENING",
-            })
-            .run();
-        }
+      return newSession;
+    })();
 
-        return newSession;
-      })();
-      resolve(session);
-    });
+    // Move stock out and snapshot based on user-provided counts
+    await this.updateStockForSession(
+      session.id,
+      sessionData.inventory || [],
+      "OPENING"
+    );
+    await this.createInventorySnapshots(
+      session.id,
+      sessionData.inventory || [],
+      "OPENING"
+    );
+
+    log(
+      `[cash-session] storage.openSessionAndMoveStock finished sessionId=${session.id}`
+    );
+    return session;
   }
 
   // Sales (synchronous transaction wrapped in Promise)
@@ -1220,9 +1222,88 @@ export class SqliteStorage implements IStorage {
     snapshots: { itemId: string; quantity: string }[],
     type: "OPENING" | "CLOSING"
   ): Promise<void> {
-    // Implementation for updating stock based on snapshots - stub for now
-    console.log(`Updating stock for session ${sessionId} with type ${type}`);
-    // Add actual logic if needed
+    if (!snapshots || snapshots.length === 0) {
+      log(
+        `[cash-session] updateStockForSession skipped (no snapshots) type=${type} sessionId=${sessionId}`
+      );
+      return;
+    }
+
+    log(
+      `[cash-session] updateStockForSession start type=${type} sessionId=${sessionId} items=${snapshots.length}`
+    );
+
+    sqlite.transaction(() => {
+      for (const snap of snapshots) {
+        const qty = toNum(snap.quantity);
+        if (qty < 0) {
+          throw new Error(
+            `Invalid quantity for item ${snap.itemId}: must be non-negative`
+          );
+        }
+        if (qty === 0) {
+          continue;
+        }
+
+        if (type === "OPENING") {
+          let remaining = qty;
+          const lots = db
+            .select()
+            .from(inventoryLots)
+            .where(eq(inventoryLots.itemId, snap.itemId))
+            .orderBy(asc(inventoryLots.createdAt))
+            .all();
+
+          for (const lot of lots) {
+            if (remaining <= 0) break;
+            const consume = Math.min(remaining, lot.quantity);
+            db.update(inventoryLots)
+              .set({ quantity: lot.quantity - consume })
+              .where(eq(inventoryLots.id, lot.id))
+              .run();
+            remaining -= consume;
+          }
+
+          if (remaining > 0) {
+            throw new Error(`Insufficient inventory for item ${snap.itemId}`);
+          }
+
+          db.insert(stockMovements)
+            .values({
+              kind: "SESSION_OUT",
+              itemId: snap.itemId,
+              quantity: -qty,
+              reference: sessionId,
+              note: "Session opening stock-out",
+            })
+            .run();
+        } else {
+          // CLOSING: add remaining stock back
+          db.insert(inventoryLots)
+            .values({
+              itemId: snap.itemId,
+              quantity: qty,
+              unitCost: 0,
+              purchasedAt: new Date(),
+            })
+            .run();
+
+          db.insert(stockMovements)
+            .values({
+              kind: "SESSION_IN",
+              itemId: snap.itemId,
+              quantity: qty,
+              reference: sessionId,
+              note: "Session closing stock-in",
+            })
+            .run();
+        }
+      }
+    });
+
+    log(
+      `[cash-session] updateStockForSession complete type=${type} sessionId=${sessionId}`
+    );
   }
 
   async getCurrentStock(): Promise<

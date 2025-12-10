@@ -380,7 +380,7 @@ export const openSessionSchema = z.object({
         quantity: z.string().min(1, "Quantity is required"),
       })
     )
-    .min(1, "At least one inventory item is required"),
+    .default([]), // Allow opening even when no raw materials are defined
 });
 
 export const closeSessionSchema = z.object({
@@ -396,7 +396,7 @@ export const closeSessionSchema = z.object({
         quantity: z.string().min(1, "Quantity is required"),
       })
     )
-    .min(1, "At least one inventory item is required"),
+    .default([]), // Permit closing even if no raw materials exist
 });
 
 export const newItemSchema = z.object({
