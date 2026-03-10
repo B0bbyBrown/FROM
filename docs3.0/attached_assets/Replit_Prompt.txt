@@ -1,6 +1,6 @@
-🚚 Replit Prompt — “Pizza Truck Ops” (Astro + Express API + Supabase)
+Replit Prompt — “Food Business Ops” (Astro + Express API + Supabase)
 
-Goal: Build a one-stop web app for a pizza food truck to track inventory & purchases, recipes (BOM), sales that auto-deplete stock via FIFO, cash sessions, expenses, and a KPI dashboard.
+Goal: Build a one-stop web app for a food business (e.g. food truck, café, single-location restaurant) to track inventory & purchases, recipes (BOM), sales that auto-deplete stock via FIFO, cash sessions, expenses, and a KPI dashboard.
 Stack requirements: Astro frontend, Express API layer, Supabase database, CSS Modules (no Tailwind).
 
 1) Tech Stack & Project Setup

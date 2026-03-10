@@ -14,7 +14,7 @@
 
 ## Default Account
 
-- Email: admin@pizzatruck.com
+- Email: admin@from.com
 - Password: password (change immediately)
 
 ## Login Process

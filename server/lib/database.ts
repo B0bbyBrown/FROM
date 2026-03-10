@@ -4,7 +4,7 @@ import * as schema from '../../shared/schema.js';
 import path from 'path';
 
 // Create SQLite database file in the project root
-const dbPath = path.join(process.cwd(), 'pizza-truck.db');
+const dbPath = path.join(process.cwd(), 'from.db');
 
 // Create the SQLite database connection
 const sqlite = new Database(dbPath);

@@ -1,12 +1,12 @@
-# Cashier Onboarding Guide: Wheely Good Pizza App
+# Cashier Onboarding Guide: FROM App
 
 Welcome! As a **Cashier**, your job is to handle sales, manage the cash drawer, and keep an eye on basic inventory. You can do everything needed for daily customer service. This guide is simple and step-by-step—no tech Guide.
 
-The app is like a smart cash register for the pizza truck. Use it on a tablet or computer.
+The app is like a smart cash register for your food business. Use it on a tablet or computer.
 
 ## 1. What Does a Cashier Do?
 
-- Focus on selling pizzas, tracking cash, and viewing stock.
+- Focus on making sales, tracking cash, and viewing stock.
 - You can: Process sales, open/close shifts, check inventory levels.
 - You can't: Manage users, buy supplies, or see detailed reports—that's for admins.
 

@@ -1,21 +1,24 @@
-# Pizza Truck Operations Management System
+# FROM — Financial, Resources & Operations Management
 
-> A comprehensive food truck operations management platform built with React, TypeScript, and SQLite
+> A comprehensive platform for **Financial**, **Resources**, and **Operations** management. Built with React, TypeScript, and SQLite for food truck and single-location businesses (e.g. a food truck).
 
-## 🍕 Overview
+## What is FROM?
 
-The Pizza Truck Operations Management System is a complete solution for managing all aspects of a food truck business. From inventory tracking to point-of-sale, cash management to financial reporting, this platform handles the day-to-day operations of running a successful pizza truck.
+**FROM** stands for **F**inancial, **R**esources, and **O**perations **M**anagement. This system is organized around those three pillars:
+
+| Pillar | What it covers |
+|--------|-----------------|
+| **Financial** | Cash sessions, sales, expenses, reports, revenue, profit, and KPIs |
+| **Resources** | Inventory, raw materials, purchases, suppliers, recipes (BOM), and FIFO lot tracking |
+| **Operations** | Day-to-day flow: sessions (open/close), point of sale, kitchen workflow, users, and access control |
 
 ### Key Features
 
-- **📦 Inventory Management** - FIFO (First In, First Out) tracking with automatic stock consumption
-- **🛒 Point of Sale** - Real-time sales processing with ingredient validation
-- **💰 Cash Session Management** - Opening/closing cash drawer tracking
-- **📊 Financial Reporting** - Revenue, profit, expense analytics with KPI dashboards
-- **🧾 Recipe Management** - Bill of Materials (BOM) with automatic cost calculation
-- **💳 Expense Tracking** - Categorized business expense monitoring
-- **👥 User Authentication** - Secure login with role-based access control
-- **📱 Responsive Design** - Modern web interface that works on all devices
+- **💰 Financial** — Cash session management, sales, expense tracking, financial reporting and dashboards
+- **📦 Resources** — FIFO inventory, raw materials, purchases, suppliers, recipes (BOM), automatic cost calculation
+- **⚙️ Operations** — Point of sale, kitchen view, user roles (Admin / Cashier / Kitchen), session-based workflow
+- **👥 Authentication** — Secure login with role-based access control
+- **📱 Responsive Design** — Modern web interface that works on all devices
 
 ## 🚀 Quick Start
 
@@ -29,7 +32,7 @@ The Pizza Truck Operations Management System is a complete solution for managing
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd pizza-truck
+   cd from
    ```
 
 2. **Install dependencies**
@@ -45,12 +48,12 @@ The Pizza Truck Operations Management System is a complete solution for managing
 4. **Access the application**
    - Open your browser to `http://localhost:5081` (development)
    - Login with demo credentials:
-     - Email: `admin@pizzatruck.com`
-     - Password: `admin123`
+     - Email: `admin@from.com`
+     - Password: `password`
 
 ### Database
 
-The system uses a local SQLite database (`pizza-truck.db`) that is automatically created on first run. This provides:
+The system uses a local SQLite database (`from.db`) that is automatically created on first run. This provides:
 - ✅ **Portability** - Database file can be easily copied/backed up
 - ✅ **No external dependencies** - No database server required
 - ✅ **Easy export** - Simple file-based data storage
@@ -202,7 +205,7 @@ The system uses SQLite with the following core entities:
 ### Project Structure
 
 ```
-pizza-truck/
+from/
 ├── client/                 # React frontend
 │   ├── src/
 │   │   ├── components/     # UI components
@@ -219,7 +222,7 @@ pizza-truck/
 │   └── storage.ts         # Storage interface
 ├── shared/                 # Shared types and schemas
 │   └── schema.ts          # Zod schemas and types
-└── pizza-truck.db         # SQLite database file
+└── from.db                # SQLite database file
 ```
 
 ### Available Scripts
@@ -245,7 +248,7 @@ npm start            # Start production server
 SESSION_SECRET=your-secret-key-here
 
 # Optional (auto-configured for development)
-DATABASE_URL=./pizza-truck.db
+DATABASE_URL=./from.db
 NODE_ENV=development
 ```
 
@@ -304,7 +307,7 @@ NODE_ENV=development
 ### Database Backup
 ```bash
 # Simple file copy (SQLite advantage)
-cp pizza-truck.db backup/pizza-truck-$(date +%Y%m%d).db
+cp from.db backup/from-$(date +%Y%m%d).db
 ```
 
 ### Log Management
@@ -328,12 +331,12 @@ cp pizza-truck.db backup/pizza-truck-$(date +%Y%m%d).db
 - Ensure all dependencies are installed
 
 **Login issues:**
-- Verify demo credentials: admin@pizzatruck.com / admin123
+- Verify demo credentials: admin@from.com / password
 - Check browser console for authentication errors
 - Clear browser cache and cookies
 
 **Database errors:**
-- Check pizza-truck.db file permissions
+- Check from.db file permissions
 - Verify SQLite database integrity
 - Review server logs for detailed error messages
 

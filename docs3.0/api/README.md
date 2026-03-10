@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Wheely Good Pizza Tracker API is a RESTful service built with Express.js. All endpoints are available at `/api`.
+The FROM API is a RESTful service built with Express.js. All endpoints are available at `/api`.
 
 ## Authentication
 
@@ -41,7 +41,7 @@ Logs a user in and establishes a session.
 **Request Body:**
 ```json
 {
-  "email": "admin@pizzatruck.com",
+  "email": "admin@from.com",
   "password": "password"
 }
 ```
@@ -69,7 +69,7 @@ Creates a new user.
 ```json
 {
   "name": "Jane Doe",
-  "email": "cashier@pizzatruck.com",
+  "email": "cashier@from.com",
   "password": "password123",
   "role": "CASHIER"
 }

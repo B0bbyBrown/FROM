@@ -1,15 +1,18 @@
-# Wheely Good Pizza Inventory and Sales Management
+# FROM — Financial, Resources & Operations Management
 
 ## Overview
 
-- This is a web application for managing inventory, sales, and cash sessions for a pizza food truck.
+- **FROM** = **F**inancial, **R**esources, and **O**perations **M**anagement. This web app covers all three pillars for food truck / single-location businesses (e.g. a food truck).
+- **Financial**: Cash sessions, sales, expenses, and reporting.
+- **Resources**: Inventory (FIFO), raw materials, purchases, suppliers, recipes (BOM).
+- **Operations**: Session open/close, POS, kitchen workflow, users, and role-based access.
 - Built with React (frontend), Express (backend), SQLite (database), and Drizzle ORM.
 - **Key Workflow**:
-  - **Admins** pre-configure the app (e.g., add users, products/recipes, initial inventory/suppliers via Purchases page).
-  - **Cashiers** log in and are guided to open a cash session (redirect if none active), then access POS for sales.
-  - **Kitchen** staff have limited access, e.g., to view inventory or a dedicated order queue.
-  - Login redirects based on role and session status (e.g., to /sessions if no active session).
-- Features include FIFO inventory tracking, real-time stock updates, reporting, and role-based access (ADMIN, CASHIER, KITCHEN).
+  - **Admins** pre-configure the app (users, products/recipes, inventory/suppliers via Purchases).
+  - **Cashiers** log in, open a cash session (redirect if none active), then use POS for sales.
+  - **Kitchen** staff have limited access (inventory view, order queue).
+  - Login redirects by role and session status (e.g. to /sessions if no active session).
+- Features include FIFO inventory tracking, real-time stock updates, financial reporting, and role-based access (ADMIN, CASHIER, KITCHEN).
 
 ## Technology Stack
 

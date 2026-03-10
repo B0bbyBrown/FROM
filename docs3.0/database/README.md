@@ -2,10 +2,10 @@
 
 ## Overview
 
-The Wheely Good Pizza Tracker uses SQLite for data storage. This choice provides:
+FROM uses SQLite for data storage. This choice provides:
 
 - Zero-configuration setup
-- Single file storage (`pizza-truck.db` in the project root)
+- Single file storage (`from.db` in the project root)
 - No external dependencies
 - Perfect for single-location deployments
 
@@ -201,8 +201,8 @@ CREATE TABLE expenses (
 ### Reset Database
 To start fresh with a fully seeded database:
 1. Stop the server.
-2. Delete `pizza-truck.db` from the project root.
+2. Delete `from.db` from the project root.
 3. Run `npm run dev:reset`.
 
 ### Backup Database
-Simply make a copy of the `pizza-truck.db` file.
+Simply make a copy of the `from.db` file.

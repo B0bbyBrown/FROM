@@ -2,7 +2,7 @@
 
 ## Overview
 
-Wheely Good Pizza Tracker is designed to run locally on a single machine. This guide covers how to prepare, deploy, and maintain the application in a production environment.
+FROM is designed to run locally on a single machine. This guide covers how to prepare, deploy, and maintain the application in a production environment.
 
 ## System Requirements
 
@@ -63,7 +63,7 @@ npm start
 
 ### Location
 
-The SQLite database is stored in `pizza-truck.db` in the application root.
+The SQLite database is stored in `from.db` in the application root.
 
 ### Backup Strategy
 
@@ -71,17 +71,17 @@ The SQLite database is stored in `pizza-truck.db` in the application root.
 
    ```bash
    # Windows (PowerShell)
-   Copy-Item pizza-truck.db "backups/pizza-truck-$(Get-Date -Format 'yyyy-MM-dd').db"
+   Copy-Item from.db "backups/from-$(Get-Date -Format 'yyyy-MM-dd').db"
 
    # Linux
-   cp pizza-truck.db "backups/pizza-truck-$(date +%Y-%m-%d).db"
+   cp from.db "backups/from-$(date +%Y-%m-%d).db"
    ```
 
 2. **Restore from Backup**
    ```bash
    # Stop application
    # Copy backup file
-   cp backups/pizza-truck-2025-09-26.db pizza-truck.db
+   cp backups/from-2025-09-26.db from.db
    # Restart application
    ```
 
@@ -98,8 +98,8 @@ The SQLite database is stored in `pizza-truck.db` in the application root.
 
 ```bash
 # Linux
-chmod 640 pizza-truck.db
-chown application:application pizza-truck.db
+chmod 640 from.db
+chown application:application from.db
 ```
 
 ### Windows Security
@@ -129,10 +129,10 @@ chown application:application pizza-truck.db
 
 ```bash
 # Check database integrity
-sqlite3 pizza-truck.db "PRAGMA integrity_check;"
+sqlite3 from.db "PRAGMA integrity_check;"
 
 # Optimize database
-sqlite3 pizza-truck.db "VACUUM;"
+sqlite3 from.db "VACUUM;"
 ```
 
 ### System Monitoring
@@ -196,9 +196,9 @@ sqlite3 pizza-truck.db "VACUUM;"
    ```bash
    # Stop application
    # Backup corrupt file
-   cp pizza-truck.db pizza-truck.corrupt
+   cp from.db from.corrupt
    # Restore from backup
-   cp backups/latest.db pizza-truck.db
+   cp backups/latest.db from.db
    # Start application
    ```
 
@@ -222,7 +222,7 @@ sqlite3 pizza-truck.db "VACUUM;"
    #!/bin/bash
    BACKUP_DIR="backups"
    DATE=$(date +%Y-%m-%d)
-   cp pizza-truck.db "$BACKUP_DIR/pizza-truck-$DATE.db"
+   cp from.db "$BACKUP_DIR/from-$DATE.db"
    ```
 
 2. **Retention Policy**

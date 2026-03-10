@@ -16,7 +16,7 @@
    - Inputs bogus email/password, submits, and expects an “Invalid credentials” message (surface via toast or inline text).
 
 3. **`should login successfully with valid credentials and redirect to dashboard`**  
-   - Enters `admin@pizzatruck.com` / `password`.  
+   - Enters `admin@from.com` / `password`.  
    - After submission, asserts the URL no longer includes `/login` and the “Dashboard” heading is visible, proving redirect on success.
 
 ## Planned Enhancements

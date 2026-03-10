@@ -1,8 +1,8 @@
-# Admin Onboarding Guide: Wheely Good Pizza App
+# Admin Onboarding Guide: FROM App
 
-Welcome! As an **Admin** in the Wheely Good Pizza app, you are like the boss of the system. You have full access to everything, which means you can manage the team, check money reports, add new menu items, and more. This guide will help you get started and understand how to use the app step by step. It's designed for people who aren't tech experts—just follow along!
+Welcome! As an **Admin** in the FROM app, you are like the boss of the system. You have full access to everything, which means you can manage the team, check money reports, add new menu items, and more. This guide will help you get started and understand how to use the app step by step. It's designed for people who aren't tech experts—just follow along!
 
-Think of the app like a digital notebook for running your pizza truck business. You'll use it on a computer or tablet. If something doesn't work, ask a tech person for help.
+Think of the app like a digital notebook for running your food business. You'll use it on a computer or tablet. If something doesn't work, ask a tech person for help.
 
 ## 1. What Does an Admin Do?
 - You can see and change everything in the app.
@@ -12,7 +12,7 @@ Think of the app like a digital notebook for running your pizza truck business. 
 ## 2. Getting Started: How to Log In
 1. Open your web browser (like Chrome or Edge) and go to the app's website (for example, http://localhost:5082 if testing, or the real site your team sets up).
 2. If you're not logged in, the app will take you to the **Login** page automatically.
-3. Enter your **email** (like admin@pizzatruck.com) and **password** (the default is "password"—change it right away for safety!).
+3. Enter your **email** (like admin@from.com) and **password** (the default is "password"—change it right away for safety!).
 4. Click "Log In."
 5. You'll land on the **Dashboard** page. This is your home base.
 
@@ -65,7 +65,7 @@ Here's a simple flow for a typical day as an admin. Start at the Dashboard, then
 - **What you can do**:
   1. Add a new product: Enter name, code (SKU), price, and recipe (e.g., "200g flour + 100g cheese").
   2. Edit existing ones or mark them as inactive.
-- **Flow Tip**: Update this when adding a new pizza flavor. Recipes link to Inventory so stock gets used up correctly.
+- **Flow Tip**: Update this when adding a new menu item or product. Recipes link to Inventory so stock gets used up correctly.
 
 ### Sales (/sales)
 - **What it is**: Where sales happen (like ringing up a customer).
@@ -85,7 +85,7 @@ Here's a simple flow for a typical day as an admin. Start at the Dashboard, then
 - **What it is**: Helps kitchen staff prep orders, but you can oversee it.
 - **What you can do**:
   - View order statuses (e.g., "Prepping" or "Done").
-  - Update if needed (e.g., mark a pizza as ready).
+  - Update if needed (e.g., mark an item as ready).
 - **Flow Tip**: Check this during busy times to see if things are moving smoothly. It uses up inventory automatically.
 
 ### Expenses (/expenses)
@@ -113,4 +113,4 @@ Here's a simple flow for a typical day as an admin. Start at the Dashboard, then
 - **Mobile Use**: The app works on phones, but some charts are better on a bigger screen.
 - **Questions?** Talk to your team or check the app's help docs. Practice in a test version first!
 
-You're all set! This app will help make running Wheely Good Pizza easier. If you follow this guide, you'll be navigating like a pro in no time.
+You're all set! This app will help make running your business easier. If you follow this guide, you'll be navigating like a pro in no time.

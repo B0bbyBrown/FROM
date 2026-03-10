@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Help page serves as a quick task helper within the Wheely Good Pizza app. It's designed to assist users by providing searchable, role-specific guides for common tasks, with direct redirects to the relevant app pages. This page is accessible via the sidebar menu and is tailored for non-technical users to quickly find and navigate to what they need.
+The Help page serves as a quick task helper within the FROM app. It's designed to assist users by providing searchable, role-specific guides for common tasks, with direct redirects to the relevant app pages. This page is accessible via the sidebar menu and is tailored for non-technical users to quickly find and navigate to what they need.
 
 ## Key Features
 

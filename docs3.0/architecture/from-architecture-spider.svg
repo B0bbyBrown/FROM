@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-label="Wheely Good Pizza Tracker Architecture Spider Diagram">
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-label="FROM Tracker Architecture Spider Diagram">
   <defs>
     <style>
       .title { font: 700 28px 'Segoe UI', Arial, sans-serif; fill: #0f172a; }
@@ -24,8 +24,8 @@
   <rect x="0" y="0" width="1400" height="900" class="bg" />
 
   <!-- Title -->
-  <text x="700" y="60" text-anchor="middle" class="title">Wheely Good Pizza Tracker – Architecture (Spider Diagram)</text>
-  <text x="700" y="88" text-anchor="middle" class="small">Offline-first • Local-only • SPA + Express + SQLite • FIFO Inventory • Session-based Ops</text>
+  <text x="700" y="60" text-anchor="middle" class="title">FROM Tracker  Architecture (Spider Diagram)</text>
+  <text x="700" y="88" text-anchor="middle" class="small">Offline-first " Local-only " SPA + Express + SQLite " FIFO Inventory " Session-based Ops</text>
 
   <!-- Center Node -->
   <rect x="525" y="110" width="350" height="120" class="center" />
@@ -52,7 +52,7 @@
   <rect x="160" y="525" width="280" height="55" class="chip" />
   <text x="170" y="546" class="text">Pages: dashboard, sessions, sales,</text>
   <text x="170" y="565" class="text">inventory, reports, users</text>
-  <text x="160" y="603" class="small">Flows: user actions → API calls; optimistic updates; error handling</text>
+  <text x="160" y="603" class="small">Flows: user actions � API calls; optimistic updates; error handling</text>
   <text x="160" y="622" class="small">Docs: frontend/README.md</text>
 
   <!-- API Link from Frontend to Middle -->
@@ -85,7 +85,7 @@
   <rect x="980" y="330" width="320" height="360" class="node" />
   <text x="1140" y="360" text-anchor="middle" class="subtitle">Backend (SQLite Database)</text>
   <rect x="1000" y="380" width="280" height="34" class="chip" />
-  <text x="1010" y="402" class="text">File: pizza-truck.db (local)</text>
+  <text x="1010" y="402" class="text">File: from.db (local)</text>
   <rect x="1000" y="420" width="280" height="55" class="chip" />
   <text x="1010" y="441" class="text">Core tables: users, ingredients,</text>
   <text x="1010" y="460" class="text">products, sales, cash_sessions</text>
@@ -99,13 +99,11 @@
   <!-- Data Flow Legend -->
   <rect x="520" y="730" width="360" height="120" class="node" />
   <text x="700" y="755" text-anchor="middle" class="subtitle">Data Flow</text>
-  <text x="540" y="780" class="small">1) Frontend → API: Create Sale / Open Session / Inventory Ops</text>
+  <text x="540" y="780" class="small">1) Frontend � API: Create Sale / Open Session / Inventory Ops</text>
   <text x="540" y="800" class="small">2) API validates, applies FIFO/COGS, logs stock_movements</text>
-  <text x="540" y="820" class="small">3) API ↔ DB via Drizzle transactions • returns JSON to client</text>
+  <text x="540" y="820" class="small">3) API � DB via Drizzle transactions " returns JSON to client</text>
 
   <!-- Compliance Tag -->
   <rect x="40" y="820" width="260" height="44" class="tag" />
   <text x="50" y="846" class="small">Source: docs3.0/* (architecture, backend, frontend, database)</text>
 </svg>
-
-

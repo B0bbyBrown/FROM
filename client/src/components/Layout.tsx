@@ -174,7 +174,7 @@ export default function Layout({
                 >
                   FROM
                 </h1>
-                <p className="text-sm text-muted-foreground">Dashboard</p>
+                <p className="text-sm text-muted-foreground">Financial, Resources & Operations</p>
               </div>
             </div>
           </div>

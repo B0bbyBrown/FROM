@@ -88,8 +88,6 @@
   <text x="840" y="655" class="small">Durable persistence and integrity</text>
 
   <!-- Flow Notes (no stack names) -->
-  <text x="600" y="710" text-anchor="middle" class="small">Flow: Routes â†’ Middleware â†’ Backends â†’ Middleware â†’ Routes</text>
+  <text x="600" y="710" text-anchor="middle" class="small">Flow: Routes ’ Middleware ’ Backends ’ Middleware ’ Routes</text>
   <text x="600" y="732" text-anchor="middle" class="small">Examples: Create Sale, Open/Close Session, Adjust Stock, Report Queries</text>
 </svg>
-
-

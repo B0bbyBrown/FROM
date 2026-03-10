@@ -2,7 +2,7 @@
 
 ## Overview
 
-Wheely Good Pizza Tracker is a modern, offline-first point of sale and inventory management system designed for single-location pizza businesses. The application runs entirely locally, making it resilient to internet outages.
+FROM (Financial, Resources & Operations Management) is a modern, offline-first point of sale and inventory management system designed for single-location food businesses. The application runs entirely locally, making it resilient to internet outages.
 
 ## System Architecture
 
@@ -148,7 +148,7 @@ Create Purchase
 ### Database Reset
 
 1. Stop server
-2. Delete `pizza-truck.db`
+2. Delete `from.db`
 3. Run `npm run dev:reset`
 
 ## Future Considerations

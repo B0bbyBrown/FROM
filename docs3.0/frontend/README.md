@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Wheely Good Pizza Tracker frontend is built with React, Vite, and modern web technologies. It provides a responsive, accessible interface for managing pizza operations.
+The FROM frontend is built with React, Vite, and modern web technologies. It provides a responsive, accessible interface for managing food business operations.
 
 ## Technology Stack
 

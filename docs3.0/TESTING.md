@@ -1,6 +1,6 @@
 # Testing Strategy
 
-This document outlines the testing strategy for the Wheely Good Pizza project.
+This document outlines the testing strategy for the FROM project.
 
 ## Unit Testing
 

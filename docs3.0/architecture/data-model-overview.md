@@ -1,6 +1,6 @@
 # Data Model Overview
 
-This document explains the core data entities in the Wheely Good Pizza application and how they interact with each other. Understanding these relationships is key to understanding the application's logic.
+This document explains the core data entities in the FROM application and how they interact with each other. Understanding these relationships is key to understanding the application's logic.
 
 ---
 

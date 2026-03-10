@@ -706,7 +706,7 @@ export default function Dashboard() {
   return (
     <Layout
       title="Dashboard"
-      description="Overview of your pizza truck operations"
+      description="Overview of financial, resources and operations"
     >
       {renderDashboard()}
     </Layout>

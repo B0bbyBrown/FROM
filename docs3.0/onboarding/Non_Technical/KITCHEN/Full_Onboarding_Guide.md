@@ -1,4 +1,4 @@
-# Kitchen Onboarding Guide: Wheely Good Pizza App
+# Kitchen Onboarding Guide: FROM App
 
 Welcome! As **Kitchen** staff, you handle prepping orders. Your access is focused on production. Simple guide ahead!
 

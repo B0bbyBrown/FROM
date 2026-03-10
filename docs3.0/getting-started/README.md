@@ -1,6 +1,6 @@
 # Getting Started
 
-This section provides instructions on how to set up the Wheely Good Pizza Tracker locally for development and testing.
+This section provides instructions on how to set up the FROM (Financial, Resources & Operations Management) locally for development and testing.
 
 ## Prerequisites
 
@@ -42,14 +42,14 @@ The application will be available at `http://localhost:5082`.
 
 This application uses a local SQLite database for simplicity and portability:
 
-- The database file, `pizza-truck.db`, is created automatically in the project root
+- The database file, `from.db`, is created automatically in the project root
 - All tables are created automatically on first run
 - The database is seeded with a rich set of sample data, including multiple users (`ADMIN`, `CASHIER`, `KITCHEN`), ingredients, products, recipes, and suppliers to allow for immediate testing.
 - The database file can be safely deleted to start fresh
 
 ### Default Admin Credentials
 
-- Email: admin@pizzatruck.com
+- Email: admin@from.com
 - Password: password
 
 ## Data Setup Order
@@ -58,7 +58,7 @@ When starting with a fresh database, the seed script handles the initial data se
 
 1. **Suppliers** - Add your ingredient suppliers
 2. **Ingredients** - Add ingredients with units and low stock levels
-3. **Products** - Add products (e.g., pizzas, drinks)
+3. **Products** - Add products (e.g., menu items, drinks)
 4. **Recipes** - Link products to their required ingredients
 5. **Purchases** - Make initial stock purchases
 6. **Cash Sessions** - Start sessions to track sales

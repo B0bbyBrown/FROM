@@ -1,6 +1,6 @@
 # Contributing
 
-We welcome contributions to the Wheely Good Pizza project! Please follow these guidelines to ensure a smooth and effective collaboration process.
+We welcome contributions to the FROM project! Please follow these guidelines to ensure a smooth and effective collaboration process.
 
 ## Code of Conduct
 
